@@ -15,6 +15,11 @@ export type UpdateInstallResult = {
   output: string;
 };
 
+export type UpdateInstallProgress = {
+  command: string;
+  chunk?: string;
+};
+
 function normalizeVersion(version: string): string {
   return version.trim().replace(/^v/i, '');
 }
@@ -34,8 +39,13 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-async function runBrew(args: string[]): Promise<UpdateInstallResult> {
+async function runBrew(
+  args: string[],
+  onProgress?: (progress: UpdateInstallProgress) => void,
+): Promise<UpdateInstallResult> {
   return await new Promise((resolve) => {
+    onProgress?.({ command: `brew ${args.join(' ')}` });
+
     const child = spawn('brew', args, {
       cwd: process.cwd(),
       env: process.env,
@@ -50,10 +60,12 @@ async function runBrew(args: string[]): Promise<UpdateInstallResult> {
 
     child.stdout.on('data', chunk => {
       stdout += chunk;
+      onProgress?.({ command: `brew ${args.join(' ')}`, chunk });
     });
 
     child.stderr.on('data', chunk => {
       stderr += chunk;
+      onProgress?.({ command: `brew ${args.join(' ')}`, chunk });
     });
 
     child.once('error', error => {
@@ -110,13 +122,15 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
   }
 }
 
-export async function installLatestUpdate(): Promise<UpdateInstallResult> {
-  const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK]);
+export async function installLatestUpdate(
+  onProgress?: (progress: UpdateInstallProgress) => void,
+): Promise<UpdateInstallResult> {
+  const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK], onProgress);
   if (upgrade.ok) {
     return upgrade;
   }
 
-  const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK]);
+  const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK], onProgress);
   if (reinstall.ok) {
     return reinstall;
   }

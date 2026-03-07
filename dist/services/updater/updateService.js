@@ -17,8 +17,9 @@ function compareVersions(a, b) {
     }
     return 0;
 }
-async function runBrew(args) {
+async function runBrew(args, onProgress) {
     return await new Promise((resolve) => {
+        onProgress?.({ command: `brew ${args.join(' ')}` });
         const child = spawn('brew', args, {
             cwd: process.cwd(),
             env: process.env,
@@ -30,9 +31,11 @@ async function runBrew(args) {
         child.stderr.setEncoding('utf8');
         child.stdout.on('data', chunk => {
             stdout += chunk;
+            onProgress?.({ command: `brew ${args.join(' ')}`, chunk });
         });
         child.stderr.on('data', chunk => {
             stderr += chunk;
+            onProgress?.({ command: `brew ${args.join(' ')}`, chunk });
         });
         child.once('error', error => {
             resolve({
@@ -78,12 +81,12 @@ export async function checkForUpdate() {
         return null;
     }
 }
-export async function installLatestUpdate() {
-    const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK]);
+export async function installLatestUpdate(onProgress) {
+    const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK], onProgress);
     if (upgrade.ok) {
         return upgrade;
     }
-    const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK]);
+    const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK], onProgress);
     if (reinstall.ok) {
         return reinstall;
     }
