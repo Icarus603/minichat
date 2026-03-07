@@ -7,7 +7,7 @@ import { InputBox } from './InputBox.js';
 import { getConfig } from '../core/configManager.js';
 import { saveConfig } from '../core/configManager.js';
 import { chat } from '../core/openaiClient.js';
-import { analyzeContextEvolution, applyContextEvolution, shouldAnalyzeContextEvolution, } from '../core/contextEvolution.js';
+import { analyzeContextEvolution, applyContextEvolution, } from '../core/contextEvolution.js';
 import { deleteTranscript, loadTranscript, renameTranscript, saveTranscript } from '../core/transcriptManager.js';
 import { getReasoningEffortOptions, listAvailableModels, supportsReasoningEffort, } from '../core/modelCatalog.js';
 import { SessionsModal } from './SessionsModal.js';
@@ -53,14 +53,11 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
         try {
             const config = getConfig();
             const statusMessages = [];
-            const shouldAnalyzeSoul = await shouldAnalyzeContextEvolution(updated, config, requestController.signal);
-            if (shouldAnalyzeSoul) {
-                const planned = await analyzeContextEvolution(updated, config, requestController.signal);
-                if (planned.soul.length > 0) {
-                    const applied = applyContextEvolution(planned);
-                    if (applied.soul.length > 0) {
-                        statusMessages.push({ role: 'status', content: 'SOUL updated' });
-                    }
+            const planned = await analyzeContextEvolution(updated, config, requestController.signal);
+            if (planned.soul.length > 0) {
+                const applied = applyContextEvolution(planned);
+                if (applied.soul.length > 0) {
+                    statusMessages.push({ role: 'status', content: 'SOUL updated' });
                 }
             }
             const response = await chat(updated, config, requestController.signal);

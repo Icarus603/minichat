@@ -45,92 +45,6 @@ function buildConversationSnippet(messages) {
         .map(message => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`)
         .join('\n');
 }
-function getLatestUserMessage(messages) {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-        const message = messages[index];
-        if (message.role === 'user') {
-            return message.content.trim();
-        }
-    }
-    return '';
-}
-const highConfidencePatterns = [
-    /記住/,
-    /记住/,
-    /我希望你/,
-    /我想讓你/,
-    /我想让你/,
-    /你以後/,
-    /你以后/,
-    /以後跟我說話/,
-    /以后跟我说话/,
-    /我喜歡/,
-    /我喜欢/,
-    /我不喜歡/,
-    /我不喜欢/,
-    /不要再/,
-    /別再/,
-    /别再/,
-    /你應該/,
-    /你应该/,
-    /請用/,
-    /请用/,
-    /我正在做/,
-    /我在做/,
-    /我是/,
-    /我的工作/,
-    /我的項目/,
-    /我的项目/,
-];
-export function shouldConsiderSoulSync(messages) {
-    const latest = getLatestUserMessage(messages);
-    if (!latest) {
-        return false;
-    }
-    if (latest.length < 6) {
-        return false;
-    }
-    return highConfidencePatterns.some(pattern => pattern.test(latest));
-}
-function parseGateResult(raw) {
-    try {
-        const parsed = JSON.parse(extractJsonObject(raw));
-        return { shouldAnalyze: parsed.should_analyze === true };
-    }
-    catch {
-        return { shouldAnalyze: false };
-    }
-}
-function buildGatePrompt(messages, soulText) {
-    const conversation = buildConversationSnippet(messages);
-    const existingSoul = soulText.trim() || '(empty)';
-    return [
-        'You are deciding whether MiniChat should do a synchronous SOUL.md analysis before replying.',
-        'Be extremely conservative.',
-        'Return strict JSON only with this exact shape:',
-        '{"should_analyze":true}',
-        '',
-        'Say true only if the latest user message very likely contains durable information worth storing in SOUL.md right now.',
-        'Examples that may justify true:',
-        '- explicit long-term preferences about how MiniChat should speak',
-        '- explicit requests to remember something durable',
-        '- durable background or ongoing context likely to matter later',
-        '- clear instructions about how MiniChat should relate to the user over time',
-        '',
-        'Say false for:',
-        '- ordinary chat',
-        '- one-off requests',
-        '- transient moods',
-        '- short reactions',
-        '- generic questions',
-        '',
-        'Existing SOUL:',
-        existingSoul,
-        '',
-        'Latest conversation snippet:',
-        conversation,
-    ].join('\n');
-}
 function buildEvolutionPrompt(messages, soulText) {
     const conversation = buildConversationSnippet(messages);
     const existingSoul = soulText.trim() || '(empty)';
@@ -175,14 +89,6 @@ export async function analyzeContextEvolution(messages, config, signal) {
     const prompt = buildEvolutionPrompt(messages, readSoulText());
     const raw = await runBackgroundPrompt(prompt, config, signal);
     return parseEvolutionResult(raw);
-}
-export async function shouldAnalyzeContextEvolution(messages, config, signal) {
-    if (!shouldConsiderSoulSync(messages)) {
-        return false;
-    }
-    const prompt = buildGatePrompt(messages, readSoulText());
-    const raw = await runBackgroundPrompt(prompt, config, signal);
-    return parseGateResult(raw).shouldAnalyze;
 }
 export function applyContextEvolution(result) {
     return {

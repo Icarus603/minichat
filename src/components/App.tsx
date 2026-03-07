@@ -10,7 +10,6 @@ import { chat } from '../core/openaiClient.js';
 import {
   analyzeContextEvolution,
   applyContextEvolution,
-  shouldAnalyzeContextEvolution,
 } from '../core/contextEvolution.js';
 import { deleteTranscript, loadTranscript, renameTranscript, saveTranscript } from '../core/transcriptManager.js';
 import {
@@ -78,15 +77,11 @@ export const App: React.FC<{
     try {
       const config = getConfig()!;
       const statusMessages: ChatMessage[] = [];
-      const shouldAnalyzeSoul = await shouldAnalyzeContextEvolution(updated, config, requestController.signal);
-
-      if (shouldAnalyzeSoul) {
-        const planned = await analyzeContextEvolution(updated, config, requestController.signal);
-        if (planned.soul.length > 0) {
-          const applied = applyContextEvolution(planned);
-          if (applied.soul.length > 0) {
-            statusMessages.push({ role: 'status', content: 'SOUL updated' });
-          }
+      const planned = await analyzeContextEvolution(updated, config, requestController.signal);
+      if (planned.soul.length > 0) {
+        const applied = applyContextEvolution(planned);
+        if (applied.soul.length > 0) {
+          statusMessages.push({ role: 'status', content: 'SOUL updated' });
         }
       }
 
