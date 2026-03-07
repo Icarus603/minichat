@@ -14,9 +14,9 @@ MiniChat keeps its own state in `~/.minichat/`, remembers your ongoing context t
 
 ## Demo
 
-[![MiniChat demo](./assets/demo.gif)](./assets/demo.mov)
+[![MiniChat demo](https://raw.githubusercontent.com/Icarus603/minichat/f5e867339cb8810b77f5529d7224a608c6d93d16/assets/demo.gif)](https://raw.githubusercontent.com/Icarus603/minichat/f5e867339cb8810b77f5529d7224a608c6d93d16/assets/demo.mov)
 
-Click the preview to open the full demo video: [`assets/demo.mov`](./assets/demo.mov).
+Click the preview to open the full demo video: [`assets/demo.mov`](https://raw.githubusercontent.com/Icarus603/minichat/f5e867339cb8810b77f5529d7224a608c6d93d16/assets/demo.mov).
 
 ## Platform
 
