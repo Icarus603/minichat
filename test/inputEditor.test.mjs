@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const editor = await import('../dist/core/inputEditor.js');
+const editor = await import('../dist/tui/input/textBuffer.js');
 
 test('backspace removes the character before the cursor', () => {
   const state = editor.createInputEditorState('abcd', 2);

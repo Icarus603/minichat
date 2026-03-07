@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import os from 'node:os';
-import type { ChatMessage } from '../../core/chatManager.js';
+import type { ChatMessage } from '../../shared/chat.js';
 import {
   clearImportedCodexAuth,
   readCodexApiKeyFromAuth,

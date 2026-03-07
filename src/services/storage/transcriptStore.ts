@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { ChatMessage } from '../../core/chatManager.js';
+import type { ChatMessage } from '../../shared/chat.js';
 
 function getTranscriptDir(): string {
   return path.join(process.env['HOME']!, '.minichat', 'transcripts');

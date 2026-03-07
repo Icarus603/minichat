@@ -1,5 +1,5 @@
-import { deleteTranscript, listTranscripts, loadTranscript, renameTranscript, saveTranscript } from '../../core/transcriptManager.js';
-import type { ChatMessage } from '../../core/chatManager.js';
+import { deleteTranscript, listTranscripts, loadTranscript, renameTranscript, saveTranscript } from '../../services/storage/transcriptStore.js';
+import type { ChatMessage } from '../../shared/chat.js';
 
 export const createSessionId = () => new Date().toISOString().replace(/[:.]/g, '-');
 
@@ -27,4 +27,8 @@ export function renameSession(sessionId: string, nextName: string): string | nul
 
 export function deleteSession(sessionId: string): boolean {
   return deleteTranscript(sessionId);
+}
+
+export function replaceDeletedCurrentSession(): { sessionId: string; transcript: ChatMessage[] } {
+  return createEmptySession();
 }

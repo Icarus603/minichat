@@ -1,1 +1,1 @@
-export { WelcomePanel } from '../../components/WelcomePanel.js';
+export { WelcomePanel } from './WelcomePanel.impl.js';

@@ -1,1 +1,1 @@
-export { App as ChatScreen } from '../../components/App.js';
+export { App as ChatScreen } from '../App.js';

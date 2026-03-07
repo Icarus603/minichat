@@ -13,7 +13,7 @@ const importFresh = async (relativePath, homeDir) => {
 
 test('context file helpers append notes into sectioned SOUL.md', async () => {
   const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-context-'));
-  const contextFiles = await importFresh('dist/core/contextFiles.js', homeDir);
+  const contextFiles = await importFresh('dist/services/storage/soulStore.js', homeDir);
 
   assert.equal(
     contextFiles.appendSoulEntry({

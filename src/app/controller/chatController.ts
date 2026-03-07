@@ -1,11 +1,25 @@
-import type { ChatMessage } from '../../core/chatManager.js';
-import { analyzeContextEvolution, applyContextEvolution } from '../../core/contextEvolution.js';
-import { chat } from '../../core/openaiClient.js';
+import type { ChatMessage } from '../../shared/chat.js';
+import { analyzeContextEvolution, applyContextEvolution } from '../../services/storage/soulService.js';
+import { chat } from '../../services/llm/providerClientFacade.js';
 import type { StoredConfig } from '../../services/storage/configStore.js';
 
 export type ChatTurnResult = {
   transcript: ChatMessage[];
 };
+
+export function buildInterruptedTranscript(transcript: ChatMessage[]): ChatMessage[] {
+  return [...transcript, { role: 'status', content: 'Generation stopped' }];
+}
+
+export function buildErrorTranscript(transcript: ChatMessage[], error: unknown): ChatMessage[] {
+  return [
+    ...transcript,
+    {
+      role: 'ai',
+      content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+    },
+  ];
+}
 
 export async function runChatTurn(
   transcript: ChatMessage[],

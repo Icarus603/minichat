@@ -7,7 +7,7 @@ export function getConfigDir() {
 function getConfigFile() {
     return path.join(getConfigDir(), 'config.json');
 }
-function normalizeApiKey(apiKey) {
+export function normalizeApiKey(apiKey) {
     if (typeof apiKey !== 'string') {
         return undefined;
     }

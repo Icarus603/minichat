@@ -1,1 +1,1 @@
-export { UpdateScreen } from '../../components/UpdateScreen.js';
+export { UpdateScreen } from '../components/UpdateScreen.js';

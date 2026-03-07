@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const modelCatalog = await import('../dist/core/modelCatalog.js');
+const modelCatalog = await import('../dist/services/llm/modelCapabilities.js');
 
 test('ChatGPT managed models include the official visible Codex picker defaults', () => {
   const ids = modelCatalog.getChatGPTManagedModels().map(model => model.id);

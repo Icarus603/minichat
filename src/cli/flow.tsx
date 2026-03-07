@@ -1,14 +1,14 @@
 import React from 'react';
 import { render } from 'ink';
-import { App } from '../components/App.js';
-import { DeviceCodeScreen } from '../components/DeviceCodeScreen.js';
-import { ResumeModal } from '../components/ResumeModal.js';
-import { SetupScreen, type SetupAction } from '../components/SetupScreen.js';
-import { UpdateScreen } from '../components/UpdateScreen.js';
+import { App } from '../tui/App.js';
+import { DeviceCodeScreen } from '../tui/components/DeviceCodeScreen.js';
+import { ResumeModal } from '../tui/components/ResumeModal.js';
+import { SetupScreen, type SetupAction } from '../tui/components/SetupScreen.js';
+import { UpdateScreen } from '../tui/components/UpdateScreen.js';
 import { clearLoginState, getImportedCodexApiKey, importCodexAuth, saveChatGPTConfig, saveDeepSeekConfig, saveOpenAIConfig, saveOpenRouterConfig } from '../app/controller/authController.js';
 import { loadSession } from '../app/controller/sessionController.js';
-import { checkForUpdate, installLatestUpdate } from '../core/updater.js';
-import { runCodexDeviceLogin, runCodexLogin } from '../core/codexAuth.js';
+import { checkForUpdate, installLatestUpdate } from '../services/updater/updateService.js';
+import { runCodexDeviceLogin, runCodexLogin } from '../services/auth/codexAuthService.js';
 import { enterAlternateScreen, exitAlternateScreen, hardResetTerminal, bindChatResizeLifecycle } from './terminal.js';
 
 export async function runSetupFlow(getConfig: () => unknown) {

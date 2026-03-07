@@ -1,13 +1,13 @@
-import { getConfig, saveConfig } from '../../core/configManager.js';
+import { readConfig, writeConfig } from '../../services/storage/configStore.js';
 import {
   getReasoningEffortOptions,
   listAvailableModels,
   supportsReasoningEffort,
   type ReasoningEffort,
-} from '../../core/modelCatalog.js';
+} from '../../services/llm/modelCapabilities.js';
 
 export async function loadModelPickerState() {
-  const config = getConfig();
+  const config = readConfig();
   if (!config) {
     return { config: null, models: [] };
   }
@@ -17,22 +17,22 @@ export async function loadModelPickerState() {
 }
 
 export function shouldOpenEffortStage(modelId: string): boolean {
-  const config = getConfig();
+  const config = readConfig();
   return Boolean(config && supportsReasoningEffort(config, modelId));
 }
 
 export function getModelEffortOptions(modelId: string): ReasoningEffort[] {
-  const config = getConfig();
+  const config = readConfig();
   return config ? getReasoningEffortOptions(config, modelId) : [];
 }
 
 export function applyModelSelection(modelId: string, reasoningEffort?: ReasoningEffort): string {
-  const config = getConfig();
+  const config = readConfig();
   if (!config) {
     return '';
   }
 
-  saveConfig({
+  writeConfig({
     ...config,
     model: modelId,
     reasoningEffort,

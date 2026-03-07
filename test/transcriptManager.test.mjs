@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 const importFreshTranscriptManager = async (homeDir) => {
   process.env.HOME = homeDir;
-  const moduleUrl = `${pathToFileURL(path.join(process.cwd(), 'dist/core/transcriptManager.js')).href}?t=${Date.now()}-${Math.random()}`;
+  const moduleUrl = `${pathToFileURL(path.join(process.cwd(), 'dist/services/storage/transcriptStore.js')).href}?t=${Date.now()}-${Math.random()}`;
   return await import(moduleUrl);
 };
 

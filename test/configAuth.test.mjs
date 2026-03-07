@@ -13,9 +13,9 @@ const importFresh = async (relativePath, homeDir) => {
 
 test('config manager saves and clears provider-backed auth config', async () => {
   const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-config-'));
-  const configManager = await importFresh('dist/core/configManager.js', homeDir);
+  const configStore = await importFresh('dist/services/storage/configStore.js', homeDir);
 
-  configManager.saveConfig({
+  configStore.writeConfig({
     provider: 'openrouter',
     apiKey: 'test-key',
     model: 'openai/gpt-5.3-codex',
@@ -23,7 +23,7 @@ test('config manager saves and clears provider-backed auth config', async () => 
     authMode: 'apiKey',
   });
 
-  assert.deepEqual(configManager.getConfig(), {
+  assert.deepEqual(configStore.readConfig(), {
     provider: 'openrouter',
     apiKey: 'test-key',
     model: 'openai/gpt-5.3-codex',
@@ -31,22 +31,22 @@ test('config manager saves and clears provider-backed auth config', async () => 
     authMode: 'apiKey',
   });
 
-  configManager.clearConfig();
-  assert.equal(configManager.getConfig(), null);
+  configStore.clearStoredConfig();
+  assert.equal(configStore.readConfig(), null);
 });
 
 test('config manager preserves deepseek provider config', async () => {
   const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-config-deepseek-'));
-  const configManager = await importFresh('dist/core/configManager.js', homeDir);
+  const configStore = await importFresh('dist/services/storage/configStore.js', homeDir);
 
-  configManager.saveConfig({
+  configStore.writeConfig({
     provider: 'deepseek',
     apiKey: 'test-key',
     model: 'deepseek-reasoner',
     authMode: 'apiKey',
   });
 
-  assert.deepEqual(configManager.getConfig(), {
+  assert.deepEqual(configStore.readConfig(), {
     provider: 'deepseek',
     apiKey: 'test-key',
     model: 'deepseek-reasoner',
@@ -57,18 +57,38 @@ test('config manager preserves deepseek provider config', async () => {
 
 test('config manager trims API keys on save and read', async () => {
   const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-config-trim-'));
-  const configManager = await importFresh('dist/core/configManager.js', homeDir);
+  const configStore = await importFresh('dist/services/storage/configStore.js', homeDir);
 
-  configManager.saveConfig({
+  configStore.writeConfig({
     provider: 'openai',
     apiKey: '  test-key\r\n',
     model: 'gpt-4.1',
     authMode: 'apiKey',
   });
 
-  assert.deepEqual(configManager.getConfig(), {
+  assert.deepEqual(configStore.readConfig(), {
     provider: 'openai',
     apiKey: 'test-key',
+    model: 'gpt-4.1',
+    reasoningEffort: undefined,
+    authMode: 'apiKey',
+  });
+});
+
+test('config manager strips bracketed paste markers from API keys', async () => {
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-config-bracketed-paste-'));
+  const configStore = await importFresh('dist/services/storage/configStore.js', homeDir);
+
+  configStore.writeConfig({
+    provider: 'openai',
+    apiKey: '[200~sk-test-123\r\n[201~',
+    model: 'gpt-4.1',
+    authMode: 'apiKey',
+  });
+
+  assert.deepEqual(configStore.readConfig(), {
+    provider: 'openai',
+    apiKey: 'sk-test-123',
     model: 'gpt-4.1',
     reasoningEffort: undefined,
     authMode: 'apiKey',
@@ -93,7 +113,7 @@ test('codex auth helper clears imported MiniChat auth state', async () => {
     })
   );
 
-  const codexAuth = await importFresh('dist/core/codexAuth.js', homeDir);
+  const codexAuth = await importFresh('dist/services/auth/codexAuthService.js', homeDir);
   assert.equal(codexAuth.hasMinichatCodexAuth(), true);
   codexAuth.clearMinichatCodexAuth();
   assert.equal(codexAuth.hasMinichatCodexAuth(), false);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { resolvePostChatAction } = await import('../dist/core/appFlow.js');
+const { resolvePostChatAction } = await import('../dist/app/controller/appFlow.js');
 
 test('resolvePostChatAction maps login to setup', () => {
   assert.equal(resolvePostChatAction('login'), 'setup');

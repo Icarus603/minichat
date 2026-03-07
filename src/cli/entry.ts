@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { resolvePostChatAction } from '../core/appFlow.js';
-import { getConfig } from '../core/configManager.js';
+import { resolvePostChatAction } from '../app/controller/appFlow.js';
+import { readConfig } from '../services/storage/configStore.js';
 import { runChatAppFlow, runResumePickerFlow, runSetupFlow, runUpdatePromptFlow, clearLoginState } from './flow.js';
 import { createSessionId } from '../app/controller/sessionController.js';
 
@@ -22,8 +22,8 @@ export async function runCli() {
   }
 
   while (true) {
-    if (!getConfig()) {
-      await runSetupFlow(getConfig);
+    if (!readConfig()) {
+      await runSetupFlow(readConfig);
     }
 
     let sessionId = createSessionId();

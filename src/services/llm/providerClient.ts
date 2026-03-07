@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { ChatMessage } from '../../core/chatManager.js';
+import type { ChatMessage } from '../../shared/chat.js';
 import type { StoredConfig } from '../storage/configStore.js';
 import { readSoulText } from '../storage/soulStore.js';
 import { chatWithCodexAuth, hasMinichatCodexAuth } from '../auth/codexAuthService.js';

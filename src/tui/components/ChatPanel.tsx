@@ -1,1 +1,1 @@
-export { ChatPanel } from '../../components/ChatPanel.js';
+export { ChatPanel } from './ChatPanel.impl.js';

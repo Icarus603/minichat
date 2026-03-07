@@ -19,7 +19,7 @@ export interface StoredConfig {
   authMode?: 'chatgpt' | 'device' | 'apiKey';
 }
 
-function normalizeApiKey(apiKey: unknown): string | undefined {
+export function normalizeApiKey(apiKey: unknown): string | undefined {
   if (typeof apiKey !== 'string') {
     return undefined;
   }

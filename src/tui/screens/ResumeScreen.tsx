@@ -1,1 +1,1 @@
-export { ResumeModal as ResumeScreen } from '../../components/ResumeModal.js';
+export { ResumeModal as ResumeScreen } from '../components/ResumeModal.js';

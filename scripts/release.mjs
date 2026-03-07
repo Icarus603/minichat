@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const tapDir = path.resolve(rootDir, '..', 'homebrew-tap');
 const packageJsonPath = path.join(rootDir, 'package.json');
-const versionTsPath = path.join(rootDir, 'src/core/version.ts');
+const versionTsPath = path.join(rootDir, 'src/shared/version.ts');
 const localCaskPath = path.join(rootDir, 'packaging/homebrew/Casks/minichat.rb');
 const tapCaskPath = path.join(tapDir, 'Casks/minichat.rb');
 

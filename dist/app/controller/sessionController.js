@@ -1,4 +1,4 @@
-import { deleteTranscript, listTranscripts, loadTranscript, renameTranscript, saveTranscript } from '../../core/transcriptManager.js';
+import { deleteTranscript, listTranscripts, loadTranscript, renameTranscript, saveTranscript } from '../../services/storage/transcriptStore.js';
 export const createSessionId = () => new Date().toISOString().replace(/[:.]/g, '-');
 export function createEmptySession() {
     const sessionId = createSessionId();
@@ -19,4 +19,7 @@ export function renameSession(sessionId, nextName) {
 }
 export function deleteSession(sessionId) {
     return deleteTranscript(sessionId);
+}
+export function replaceDeletedCurrentSession() {
+    return createEmptySession();
 }
