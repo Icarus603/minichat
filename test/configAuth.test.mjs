@@ -55,6 +55,26 @@ test('config manager preserves deepseek provider config', async () => {
   });
 });
 
+test('config manager trims API keys on save and read', async () => {
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-config-trim-'));
+  const configManager = await importFresh('dist/core/configManager.js', homeDir);
+
+  configManager.saveConfig({
+    provider: 'openai',
+    apiKey: '  test-key\r\n',
+    model: 'gpt-4.1',
+    authMode: 'apiKey',
+  });
+
+  assert.deepEqual(configManager.getConfig(), {
+    provider: 'openai',
+    apiKey: 'test-key',
+    model: 'gpt-4.1',
+    reasoningEffort: undefined,
+    authMode: 'apiKey',
+  });
+});
+
 test('codex auth helper clears imported MiniChat auth state', async () => {
   const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-auth-'));
   const configDir = path.join(homeDir, '.minichat');

@@ -174,6 +174,64 @@ function buildCodexPrompt(messages, systemPrompt) {
     sections.push('Do not include role labels.');
     return sections.join('\n\n');
 }
+export function parseCodexExecJsonOutput(stdout) {
+    const lines = stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    let sawJsonEvent = false;
+    const assistantTexts = [];
+    const rawTextLines = [];
+    for (const line of lines) {
+        try {
+            const event = JSON.parse(line);
+            sawJsonEvent = true;
+            if (typeof event.content === 'string' && event.content.trim()) {
+                assistantTexts.push(event.content.trim());
+                continue;
+            }
+            if (typeof event.delta === 'string' && event.delta.trim()) {
+                assistantTexts.push(event.delta.trim());
+                continue;
+            }
+            if (typeof event.summary === 'string' && event.summary.trim()) {
+                assistantTexts.push(event.summary.trim());
+                continue;
+            }
+            if (event.type === 'item.completed' &&
+                event.item?.type === 'agent_message' &&
+                typeof event.item.text === 'string' &&
+                event.item.text.trim()) {
+                assistantTexts.push(event.item.text.trim());
+                continue;
+            }
+            if (event.item?.type === 'agent_message' &&
+                Array.isArray(event.item.content)) {
+                const contentText = event.item.content
+                    .map((content) => typeof content.text === 'string' ? content.text.trim() : '')
+                    .filter(Boolean)
+                    .join('\n')
+                    .trim();
+                if (contentText) {
+                    assistantTexts.push(contentText);
+                }
+            }
+        }
+        catch {
+            rawTextLines.push(line);
+        }
+    }
+    if (assistantTexts.length > 0) {
+        return assistantTexts.join('\n').trim();
+    }
+    if (rawTextLines.length > 0) {
+        return rawTextLines.join('\n').trim();
+    }
+    if (sawJsonEvent) {
+        throw new Error('codex exec returned JSON events but no assistant message text');
+    }
+    return stdout.trim();
+}
 export async function chatWithCodexAuth(messages, model, reasoningEffort, systemPrompt, signal) {
     const prompt = buildCodexPrompt(messages, systemPrompt);
     const args = ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'read-only', '--color', 'never'];
@@ -223,29 +281,12 @@ export async function chatWithCodexAuth(messages, model, reasoningEffort, system
                 reject(new Error(stderr.trim() || `codex exec failed with exit code ${code}`));
                 return;
             }
-            const lines = stdout
-                .split(/\r?\n/)
-                .map((line) => line.trim())
-                .filter(Boolean);
-            for (let index = lines.length - 1; index >= 0; index -= 1) {
-                try {
-                    const event = JSON.parse(lines[index]);
-                    if (typeof event.content === 'string' && event.content.trim()) {
-                        resolve(event.content.trim());
-                        return;
-                    }
-                    if (typeof event.delta === 'string' && event.delta.trim()) {
-                        resolve(event.delta.trim());
-                        return;
-                    }
-                    if (typeof event.summary === 'string' && event.summary.trim()) {
-                        resolve(event.summary.trim());
-                        return;
-                    }
-                }
-                catch { }
+            try {
+                resolve(parseCodexExecJsonOutput(stdout));
             }
-            resolve(stdout.trim());
+            catch (error) {
+                reject(error instanceof Error ? error : new Error(String(error)));
+            }
         });
         child.stdin.end(`${prompt}${os.EOL}`);
     });

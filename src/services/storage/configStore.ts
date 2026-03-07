@@ -19,6 +19,19 @@ export interface StoredConfig {
   authMode?: 'chatgpt' | 'device' | 'apiKey';
 }
 
+function normalizeApiKey(apiKey: unknown): string | undefined {
+  if (typeof apiKey !== 'string') {
+    return undefined;
+  }
+
+  const normalized = apiKey
+    .trim()
+    .replace(/^["']+|["']+$/g, '')
+    .replace(/\[200~|\[201~/g, '')
+    .replace(/[\u0000-\u001F\u007F\s]+/g, '');
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 const DEFAULT_SOUL_TEXT = [
   '# SOUL',
   '',
@@ -69,7 +82,7 @@ export function readConfig(): StoredConfig | null {
     if (typeof parsed.model === 'string' && (typeof parsed.apiKey === 'string' || parsed.authMode)) {
       return {
         provider,
-        apiKey: parsed.apiKey,
+        apiKey: normalizeApiKey(parsed.apiKey),
         model: parsed.model,
         reasoningEffort:
           parsed.reasoningEffort === 'none' ||
@@ -90,7 +103,11 @@ export function readConfig(): StoredConfig | null {
 
 export function writeConfig(config: StoredConfig): void {
   ensureConfigDir();
-  fs.writeFileSync(getConfigFile(), JSON.stringify(config, null, 2));
+  const normalizedConfig: StoredConfig = {
+    ...config,
+    apiKey: normalizeApiKey(config.apiKey),
+  };
+  fs.writeFileSync(getConfigFile(), JSON.stringify(normalizedConfig, null, 2));
   ensureDefaultSoul();
 }
 

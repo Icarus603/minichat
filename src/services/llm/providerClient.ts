@@ -9,6 +9,26 @@ export interface ProviderClient {
   runBackgroundPrompt(prompt: string, config: StoredConfig, signal?: AbortSignal): Promise<string>;
 }
 
+function formatProviderError(error: unknown): Error {
+  if (!(error instanceof Error)) {
+    return new Error(String(error));
+  }
+
+  const status = 'status' in error && typeof error.status === 'number' ? error.status : null;
+  const code = 'code' in error && typeof error.code === 'string' ? error.code : null;
+  const cause = 'cause' in error && error.cause ? String(error.cause) : null;
+  const requestId = 'request_id' in error && typeof error.request_id === 'string' ? error.request_id : null;
+  const details = [status ? `status ${status}` : null, code, requestId ? `request ${requestId}` : null, cause]
+    .filter(Boolean)
+    .join(' · ');
+
+  const message = details
+    ? `${error.message} (${details})`
+    : error.message;
+
+  return new Error(message);
+}
+
 function extractTextFromResponse(response: Awaited<ReturnType<OpenAI['responses']['create']>>): string {
   if ('output_text' in response && typeof response.output_text === 'string' && response.output_text.trim()) {
     return response.output_text;
@@ -32,8 +52,16 @@ function extractTextFromResponse(response: Awaited<ReturnType<OpenAI['responses'
 }
 
 function createOpenAICompatibleClient(config: StoredConfig): OpenAI {
+  const sanitizedApiKey = typeof config.apiKey === 'string'
+    ? config.apiKey
+      .trim()
+      .replace(/^["']+|["']+$/g, '')
+      .replace(/\[200~|\[201~/g, '')
+      .replace(/[\u0000-\u001F\u007F\s]+/g, '')
+    : config.apiKey;
+
   return new OpenAI({
-    apiKey: config.apiKey,
+    apiKey: sanitizedApiKey,
     baseURL:
       config.provider === 'openrouter'
         ? 'https://openrouter.ai/api/v1'
@@ -47,6 +75,44 @@ function createOpenAICompatibleClient(config: StoredConfig): OpenAI {
         }
       : undefined,
   });
+}
+
+function isFetchTransportError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const cause = 'cause' in error ? error.cause : null;
+  return error.message.includes('Connection error') ||
+    error.message.includes('fetch failed') ||
+    String(cause ?? '').includes('fetch failed');
+}
+
+async function diagnoseOpenAITransport(config: StoredConfig): Promise<string> {
+  const sanitizedApiKey = typeof config.apiKey === 'string'
+    ? config.apiKey
+      .trim()
+      .replace(/^["']+|["']+$/g, '')
+      .replace(/\[200~|\[201~/g, '')
+      .replace(/[\u0000-\u001F\u007F\s]+/g, '')
+    : config.apiKey;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        Authorization: `Bearer ${sanitizedApiKey}`,
+      },
+    });
+
+    return `direct fetch ok (status ${response.status})`;
+  } catch (error) {
+    if (error instanceof Error) {
+      const cause = 'cause' in error ? error.cause : null;
+      return `direct fetch failed: ${error.name}: ${error.message}${cause ? ` · ${String(cause)}` : ''}`;
+    }
+
+    return `direct fetch failed: ${String(error)}`;
+  }
 }
 
 function buildResponsesInput(messages: ChatMessage[]): Array<{ role: 'user' | 'assistant'; content: string }> {
@@ -86,64 +152,90 @@ const codexProviderClient: ProviderClient = {
 
 const openAIKeyProviderClient: ProviderClient = {
   async chat(messages, config, signal) {
-    const client = createOpenAICompatibleClient(config);
-    const response = await client.responses.create({
-      model: config.model,
-      instructions: getSystemPrompt() || undefined,
-      input: buildResponsesInput(messages),
-      reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
-    }, signal ? { signal } : undefined);
+    try {
+      const client = createOpenAICompatibleClient(config);
+      const response = await client.responses.create({
+        model: config.model,
+        instructions: getSystemPrompt() || undefined,
+        input: buildResponsesInput(messages),
+        reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
+      }, signal ? { signal } : undefined);
 
-    return extractTextFromResponse(response) || '(no response)';
+      return extractTextFromResponse(response) || '(no response)';
+    } catch (error) {
+      if (isFetchTransportError(error)) {
+        const diagnostic = await diagnoseOpenAITransport(config);
+        throw new Error(`${formatProviderError(error).message} · ${diagnostic}`);
+      }
+
+      throw formatProviderError(error);
+    }
   },
   async runBackgroundPrompt(prompt, config, signal) {
-    const client = createOpenAICompatibleClient(config);
-    const response = await client.responses.create({
-      model: config.model,
-      instructions: 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.',
-      input: prompt,
-      reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
-    }, signal ? { signal } : undefined);
-    return extractTextFromResponse(response);
+    try {
+      const client = createOpenAICompatibleClient(config);
+      const response = await client.responses.create({
+        model: config.model,
+        instructions: 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.',
+        input: prompt,
+        reasoning: config.reasoningEffort ? { effort: config.reasoningEffort } : undefined,
+      }, signal ? { signal } : undefined);
+      return extractTextFromResponse(response);
+    } catch (error) {
+      if (isFetchTransportError(error)) {
+        const diagnostic = await diagnoseOpenAITransport(config);
+        throw new Error(`${formatProviderError(error).message} · ${diagnostic}`);
+      }
+
+      throw formatProviderError(error);
+    }
   },
 };
 
 const openAICompatibleChatProviderClient: ProviderClient = {
   async chat(messages, config, signal) {
-    const client = createOpenAICompatibleClient(config);
-    const system = getSystemPrompt();
-    const response = await client.chat.completions.create({
-      model: config.model,
-      messages: [
-        ...(system ? [{ role: 'system' as const, content: system }] : []),
-        ...messages
-          .filter((message) => message.role === 'user' || message.role === 'ai')
-          .map((message) => ({
-            role: message.role === 'user' ? 'user' as const : 'assistant' as const,
-            content: message.content,
-          })),
-      ],
-    }, signal ? { signal } : undefined);
+    try {
+      const client = createOpenAICompatibleClient(config);
+      const system = getSystemPrompt();
+      const response = await client.chat.completions.create({
+        model: config.model,
+        messages: [
+          ...(system ? [{ role: 'system' as const, content: system }] : []),
+          ...messages
+            .filter((message) => message.role === 'user' || message.role === 'ai')
+            .map((message) => ({
+              role: message.role === 'user' ? 'user' as const : 'assistant' as const,
+              content: message.content,
+            })),
+        ],
+      }, signal ? { signal } : undefined);
 
-    return response.choices[0]?.message?.content ?? '(no response)';
+      return response.choices[0]?.message?.content ?? '(no response)';
+    } catch (error) {
+      throw formatProviderError(error);
+    }
   },
   async runBackgroundPrompt(prompt, config, signal) {
-    const client = createOpenAICompatibleClient(config);
-    const response = await client.chat.completions.create({
-      model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    }, signal ? { signal } : undefined);
+    try {
+      const client = createOpenAICompatibleClient(config);
+      const response = await client.chat.completions.create({
+        model: config.model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      }, signal ? { signal } : undefined);
 
-    return response.choices[0]?.message?.content ?? '';
+      return response.choices[0]?.message?.content ?? '';
+    } catch (error) {
+      throw formatProviderError(error);
+    }
   },
 };
 

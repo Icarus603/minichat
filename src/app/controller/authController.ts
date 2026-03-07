@@ -1,10 +1,17 @@
 import { clearConfig, getConfig, saveConfig } from '../../core/configManager.js';
 import { clearMinichatCodexAuth, readCodexApiKey, runCodexLogout, saveMinichatCodexAuth } from '../../core/codexAuth.js';
 
+const sanitizeApiKey = (apiKey: string) =>
+  apiKey
+    .trim()
+    .replace(/^["']+|["']+$/g, '')
+    .replace(/\[200~|\[201~/g, '')
+    .replace(/[\u0000-\u001F\u007F\s]+/g, '');
+
 export const saveOpenAIConfig = (apiKey: string) => {
   saveConfig({
     provider: 'openai',
-    apiKey,
+    apiKey: sanitizeApiKey(apiKey),
     model: 'gpt-4.1',
     authMode: 'apiKey',
   });
@@ -13,7 +20,7 @@ export const saveOpenAIConfig = (apiKey: string) => {
 export const saveOpenRouterConfig = (apiKey: string) => {
   saveConfig({
     provider: 'openrouter',
-    apiKey,
+    apiKey: sanitizeApiKey(apiKey),
     model: 'openai/gpt-5.3-codex',
     authMode: 'apiKey',
   });
@@ -22,7 +29,7 @@ export const saveOpenRouterConfig = (apiKey: string) => {
 export const saveDeepSeekConfig = (apiKey: string, model: 'deepseek-chat' | 'deepseek-reasoner') => {
   saveConfig({
     provider: 'deepseek',
-    apiKey,
+    apiKey: sanitizeApiKey(apiKey),
     model,
     authMode: 'apiKey',
   });
