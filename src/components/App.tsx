@@ -7,7 +7,11 @@ import type { ChatMessage } from '../core/chatManager.js';
 import { getConfig } from '../core/configManager.js';
 import { saveConfig } from '../core/configManager.js';
 import { chat } from '../core/openaiClient.js';
-import { analyzeContextEvolution, applyContextEvolution } from '../core/contextEvolution.js';
+import {
+  analyzeContextEvolution,
+  applyContextEvolution,
+  shouldAnalyzeContextEvolution,
+} from '../core/contextEvolution.js';
 import { deleteTranscript, loadTranscript, renameTranscript, saveTranscript } from '../core/transcriptManager.js';
 import {
   getReasoningEffortOptions,
@@ -73,13 +77,16 @@ export const App: React.FC<{
 
     try {
       const config = getConfig()!;
-      const planned = await analyzeContextEvolution(updated, config, requestController.signal);
       const statusMessages: ChatMessage[] = [];
+      const shouldAnalyzeSoul = await shouldAnalyzeContextEvolution(updated, config, requestController.signal);
 
-      if (planned.soul.length > 0) {
-        const applied = applyContextEvolution(planned);
-        if (applied.soul.length > 0) {
-          statusMessages.push({ role: 'status', content: 'SOUL updated' });
+      if (shouldAnalyzeSoul) {
+        const planned = await analyzeContextEvolution(updated, config, requestController.signal);
+        if (planned.soul.length > 0) {
+          const applied = applyContextEvolution(planned);
+          if (applied.soul.length > 0) {
+            statusMessages.push({ role: 'status', content: 'SOUL updated' });
+          }
         }
       }
 
