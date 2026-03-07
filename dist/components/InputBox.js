@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Box, Text, useInput, useStdin } from 'ink';
 import { theme } from '../core/theme.js';
 import { CommandPalette } from './CommandPalette.js';
+import { ModelPalette } from './ModelPalette.js';
 import { filterCommands } from '../core/commandParser.js';
 import { backspace, clearEditor, createInputEditorState, deleteForward, getRenderedLines, insertText, moveDown, moveLeft, moveRight, moveUp, } from '../core/inputEditor.js';
 const DOUBLE_ESCAPE_MS = 400;
 const BACKSPACE_SEQUENCES = new Set(['\b', '\x7f']);
 const FORWARD_DELETE_SEQUENCES = new Set(['\x1b[3~']);
-export const InputBox = ({ onSend, onCommand }) => {
+export const InputBox = ({ onSend, onCommand, modelPickerOpen, modelPickerLoading, modelPickerError, modelOptions, modelSelectedIndex, currentModel, onModelMove, onModelSelect, onModelClose, }) => {
     const [editor, setEditor] = useState(createInputEditorState());
     const [showPalette, setShowPalette] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -33,6 +34,25 @@ export const InputBox = ({ onSend, onCommand }) => {
         const sequence = lastSequenceRef.current;
         const backwardDelete = BACKSPACE_SEQUENCES.has(sequence) || key.backspace || input === '\b' || input === '\x7f';
         const forwardDelete = FORWARD_DELETE_SEQUENCES.has(sequence) || (key.delete && !backwardDelete);
+        if (modelPickerOpen) {
+            if (key.upArrow) {
+                onModelMove(-1);
+                return;
+            }
+            if (key.downArrow) {
+                onModelMove(1);
+                return;
+            }
+            if (key.return && !modelPickerLoading) {
+                onModelSelect();
+                return;
+            }
+            if (key.escape) {
+                onModelClose();
+                return;
+            }
+            return;
+        }
         if (showPalette) {
             if (key.upArrow) {
                 setSelectedIndex((i) => Math.max(0, i - 1));
@@ -151,5 +171,5 @@ export const InputBox = ({ onSend, onCommand }) => {
     const { lines, cursorLineIndex, cursorColumn } = getRenderedLines(editor);
     return (_jsxs(Box, { flexDirection: "column", children: [_jsx(Box, { borderStyle: "single", borderLeft: false, borderRight: false, borderColor: "#444", paddingX: 1, flexDirection: "column", children: lines.map((line, idx) => (_jsxs(Box, { flexDirection: "row", children: [idx === 0
                             ? _jsx(Text, { color: "#888", children: '❯ ' })
-                            : _jsx(Text, { children: '  ' }), idx === cursorLineIndex ? (_jsxs(Text, { color: theme.input, children: [line.slice(0, cursorColumn), _jsx(Text, { backgroundColor: "#FFF", color: "#000", children: line[cursorColumn] ?? ' ' }), line.slice(cursorColumn + (cursorColumn < line.length ? 1 : 0))] })) : (_jsx(Text, { color: theme.input, children: line || ' ' }))] }, idx))) }), showPalette && (_jsx(CommandPalette, { query: paletteQuery, commands: commands, selectedIndex: selectedIndex }))] }));
+                            : _jsx(Text, { children: '  ' }), idx === cursorLineIndex ? (_jsxs(Text, { color: theme.input, children: [line.slice(0, cursorColumn), _jsx(Text, { backgroundColor: "#FFF", color: "#000", children: line[cursorColumn] ?? ' ' }), line.slice(cursorColumn + (cursorColumn < line.length ? 1 : 0))] })) : (_jsx(Text, { color: theme.input, children: line || ' ' }))] }, idx))) }), showPalette && (_jsx(CommandPalette, { query: paletteQuery, commands: commands, selectedIndex: selectedIndex })), modelPickerOpen && (_jsx(ModelPalette, { models: modelOptions, selectedIndex: modelSelectedIndex, currentModel: currentModel, loading: modelPickerLoading, error: modelPickerError }))] }));
 };

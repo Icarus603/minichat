@@ -6,7 +6,8 @@ import { theme } from '../core/theme.js';
 export type SetupAction =
   | { type: 'chatgpt' }
   | { type: 'device' }
-  | { type: 'apiKey'; apiKey: string };
+  | { type: 'openaiApiKey'; apiKey: string }
+  | { type: 'openrouterApiKey'; apiKey: string };
 
 const OPTIONS = [
   {
@@ -20,9 +21,14 @@ const OPTIONS = [
     description: 'Sign in from another device with a one-time code',
   },
   {
-    id: 'apiKey',
-    title: 'Provide your own API key',
-    description: 'Pay for what you use',
+    id: 'openaiApiKey',
+    title: 'Use OpenAI API key',
+    description: 'Use OpenAI-hosted API models with your own key',
+  },
+  {
+    id: 'openrouterApiKey',
+    title: 'Use OpenRouter API key',
+    description: 'Use OpenRouter with OpenAI and other routed models',
   },
 ] as const;
 
@@ -32,15 +38,16 @@ export const SetupScreen: React.FC<{
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [apiKeyMode, setApiKeyMode] = useState<'openaiApiKey' | 'openrouterApiKey'>('openaiApiKey');
 
   const selectedOption = OPTIONS[selectedIndex];
   const subtitle = useMemo(() => {
     if (showApiKeyInput) {
-      return 'Paste or type your API key below. It will be stored locally in ~/.minichat/config.json.';
+      return `Paste or type your ${apiKeyMode === 'openrouterApiKey' ? 'OpenRouter' : 'OpenAI'} API key below. It will be stored locally in ~/.minichat/config.json.`;
     }
 
-    return 'Sign in with ChatGPT to use MiniChat with your OpenAI account or connect an API key for usage-based billing.';
-  }, [showApiKeyInput]);
+    return 'Sign in with ChatGPT to use MiniChat with your OpenAI account, or connect an OpenAI / OpenRouter API key for usage-based billing.';
+  }, [apiKeyMode, showApiKeyInput]);
 
   useInput((input, key) => {
     if (showApiKeyInput) {
@@ -61,13 +68,14 @@ export const SetupScreen: React.FC<{
       return;
     }
 
-    if (input === '1' || input === '2' || input === '3') {
+    if (input === '1' || input === '2' || input === '3' || input === '4') {
       setSelectedIndex(Number(input) - 1);
       return;
     }
 
     if (key.return) {
-      if (selectedOption.id === 'apiKey') {
+      if (selectedOption.id === 'openaiApiKey' || selectedOption.id === 'openrouterApiKey') {
+        setApiKeyMode(selectedOption.id);
         setShowApiKeyInput(true);
         return;
       }
@@ -103,7 +111,9 @@ export const SetupScreen: React.FC<{
 
       {showApiKeyInput ? (
         <Box flexDirection="column">
-          <Text color={theme.welcomeText}>Paste or type your API key</Text>
+          <Text color={theme.welcomeText}>
+            {`Paste or type your ${apiKeyMode === 'openrouterApiKey' ? 'OpenRouter' : 'OpenAI'} API key`}
+          </Text>
           <Box marginTop={1}>
             <Text color={theme.welcomeIcon}>{'> '}</Text>
             <TextInput
@@ -113,7 +123,10 @@ export const SetupScreen: React.FC<{
               onSubmit={(value) => {
                 const nextApiKey = value.trim();
                 if (!nextApiKey) return;
-                onDone({ type: 'apiKey', apiKey: nextApiKey });
+                onDone({
+                  type: apiKeyMode,
+                  apiKey: nextApiKey,
+                });
               }}
             />
           </Box>

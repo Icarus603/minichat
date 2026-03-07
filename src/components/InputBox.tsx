@@ -3,7 +3,9 @@ import { Box, Text, useInput, useStdin } from 'ink';
 import type { Key } from 'ink';
 import { theme } from '../core/theme.js';
 import { CommandPalette } from './CommandPalette.js';
+import { ModelPalette } from './ModelPalette.js';
 import { filterCommands } from '../core/commandParser.js';
+import type { ModelOption } from '../core/modelCatalog.js';
 import {
   backspace,
   clearEditor,
@@ -25,7 +27,28 @@ const FORWARD_DELETE_SEQUENCES = new Set(['\x1b[3~']);
 export const InputBox: React.FC<{
   onSend: (input: string) => void;
   onCommand: (cmd: string) => void;
-}> = ({ onSend, onCommand }) => {
+  modelPickerOpen: boolean;
+  modelPickerLoading: boolean;
+  modelPickerError: string | null;
+  modelOptions: ModelOption[];
+  modelSelectedIndex: number;
+  currentModel: string;
+  onModelMove: (direction: -1 | 1) => void;
+  onModelSelect: () => void;
+  onModelClose: () => void;
+}> = ({
+  onSend,
+  onCommand,
+  modelPickerOpen,
+  modelPickerLoading,
+  modelPickerError,
+  modelOptions,
+  modelSelectedIndex,
+  currentModel,
+  onModelMove,
+  onModelSelect,
+  onModelClose,
+}) => {
   const [editor, setEditor] = useState<InputEditorState>(createInputEditorState());
   const [showPalette, setShowPalette] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -55,6 +78,30 @@ export const InputBox: React.FC<{
     const sequence = lastSequenceRef.current;
     const backwardDelete = BACKSPACE_SEQUENCES.has(sequence) || key.backspace || input === '\b' || input === '\x7f';
     const forwardDelete = FORWARD_DELETE_SEQUENCES.has(sequence) || (key.delete && !backwardDelete);
+
+    if (modelPickerOpen) {
+      if (key.upArrow) {
+        onModelMove(-1);
+        return;
+      }
+
+      if (key.downArrow) {
+        onModelMove(1);
+        return;
+      }
+
+      if (key.return && !modelPickerLoading) {
+        onModelSelect();
+        return;
+      }
+
+      if (key.escape) {
+        onModelClose();
+        return;
+      }
+
+      return;
+    }
 
     if (showPalette) {
       if (key.upArrow) {
@@ -232,6 +279,16 @@ export const InputBox: React.FC<{
           query={paletteQuery}
           commands={commands}
           selectedIndex={selectedIndex}
+        />
+      )}
+
+      {modelPickerOpen && (
+        <ModelPalette
+          models={modelOptions}
+          selectedIndex={modelSelectedIndex}
+          currentModel={currentModel}
+          loading={modelPickerLoading}
+          error={modelPickerError}
         />
       )}
     </Box>

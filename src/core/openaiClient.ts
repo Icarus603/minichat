@@ -36,6 +36,13 @@ export async function chat(messages: ChatMessage[], config: Config): Promise<str
 
   const client = new OpenAI({
     apiKey: config.apiKey,
+    baseURL: config.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : undefined,
+    defaultHeaders: config.provider === 'openrouter'
+      ? {
+          'HTTP-Referer': 'https://github.com/Icarus603/minichat',
+          'X-Title': 'MiniChat',
+        }
+      : undefined,
   });
 
   const response = await client.chat.completions.create({

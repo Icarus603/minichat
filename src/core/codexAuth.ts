@@ -94,6 +94,26 @@ export function hasMinichatCodexAuth(): boolean {
   }
 }
 
+export function clearMinichatCodexAuth(): void {
+  try {
+    if (fs.existsSync(minichatAuthFile)) {
+      fs.unlinkSync(minichatAuthFile);
+    }
+  } catch {}
+}
+
+export async function runCodexLogout(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const child = spawn('codex', ['logout'], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+      env: process.env,
+    });
+
+    child.once('error', () => resolve());
+    child.once('close', () => resolve());
+  });
+}
+
 export async function runCodexLogin(method: LoginMethod): Promise<number> {
   const args = method === 'device' ? ['login', '--device-auth'] : ['login'];
 

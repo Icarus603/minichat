@@ -9,8 +9,8 @@ import { hideBin } from 'yargs/helpers';
 import { App } from './components/App.js';
 import { DeviceCodeScreen } from './components/DeviceCodeScreen.js';
 import { SetupScreen } from './components/SetupScreen.js';
-import { getConfig, saveConfig } from './core/configManager.js';
-import { readCodexApiKey, runCodexDeviceLogin, runCodexLogin, saveMinichatCodexAuth } from './core/codexAuth.js';
+import { clearConfig, getConfig, saveConfig } from './core/configManager.js';
+import { clearMinichatCodexAuth, readCodexApiKey, runCodexDeviceLogin, runCodexLogin, runCodexLogout, saveMinichatCodexAuth } from './core/codexAuth.js';
 const require = createRequire(import.meta.url);
 const loadInkInstances = async () => {
     const inkEntry = require.resolve('ink');
@@ -31,13 +31,23 @@ const exitAlternateScreen = () => {
 };
 const saveOpenAIConfig = (apiKey) => {
     saveConfig({
+        provider: 'openai',
         apiKey,
         model: 'gpt-4.1',
         authMode: 'apiKey',
     });
 };
+const saveOpenRouterConfig = (apiKey) => {
+    saveConfig({
+        provider: 'openrouter',
+        apiKey,
+        model: 'openai/gpt-5.3-codex',
+        authMode: 'apiKey',
+    });
+};
 const saveChatGPTConfig = (method) => {
     saveConfig({
+        provider: 'openai',
         model: 'gpt-5.4',
         authMode: method,
     });
@@ -55,8 +65,12 @@ const runSetup = async () => {
             exitAlternateScreen();
         });
         process.stdout.write('\x1Bc');
-        if (action.type === 'apiKey') {
+        if (action.type === 'openaiApiKey') {
             saveOpenAIConfig(action.apiKey);
+            break;
+        }
+        if (action.type === 'openrouterApiKey') {
+            saveOpenRouterConfig(action.apiKey);
             break;
         }
         if (action.type === 'device') {
@@ -130,23 +144,20 @@ const runSetup = async () => {
         break;
     }
 };
-(async () => {
-    const argv = yargs(hideBin(process.argv))
-        .option('resume', {
-        type: 'boolean',
-        desc: 'Resume a previous conversation',
-        default: false,
-    })
-        .parseSync();
-    // ── Page 1: Setup (only if no config saved) ───────────────────
-    if (!getConfig()) {
-        await runSetup();
-        process.stdout.write('\x1Bc');
-    }
-    // ── Page 2: Main chat app ─────────────────────────────────────
-    const resumeMode = Boolean(argv.resume);
+const clearLoginState = async () => {
+    clearConfig();
+    clearMinichatCodexAuth();
+    await runCodexLogout();
+};
+const runChatApp = async (resumeMode) => {
     enterAlternateScreen();
-    const app = render(_jsx(App, { resumeMode: resumeMode }));
+    let resolveAuthAction = null;
+    const authActionPromise = new Promise((resolve) => {
+        resolveAuthAction = resolve;
+    });
+    const app = render(_jsx(App, { resumeMode: resumeMode, onAuthAction: (action) => {
+            resolveAuthAction?.(action);
+        } }));
     const instances = await loadInkInstances();
     const instance = instances.get(process.stdout);
     let previousColumns = process.stdout.columns ?? 0;
@@ -172,8 +183,41 @@ const runSetup = async () => {
         app.clear();
     };
     process.stdout.prependListener('resize', handleResize);
-    app.waitUntilExit().finally(() => {
-        process.stdout.off('resize', handleResize);
-        exitAlternateScreen();
-    });
+    const result = await Promise.race([
+        app.waitUntilExit().then(() => 'exit'),
+        authActionPromise,
+    ]);
+    process.stdout.off('resize', handleResize);
+    app.unmount();
+    app.cleanup();
+    exitAlternateScreen();
+    return result;
+};
+(async () => {
+    const argv = yargs(hideBin(process.argv))
+        .option('resume', {
+        type: 'boolean',
+        desc: 'Resume a previous conversation',
+        default: false,
+    })
+        .parseSync();
+    // ── Page 1: Setup (only if no config saved) ───────────────────
+    if (!getConfig()) {
+        await runSetup();
+        process.stdout.write('\x1Bc');
+    }
+    const resumeMode = Boolean(argv.resume);
+    while (getConfig()) {
+        const result = await runChatApp(resumeMode);
+        if (result === 'exit') {
+            break;
+        }
+        await clearLoginState();
+        process.stdout.write('\x1Bc');
+        if (result === 'logout') {
+            break;
+        }
+        await runSetup();
+        process.stdout.write('\x1Bc');
+    }
 })();

@@ -1,4 +1,7 @@
 export const commands = [
+    { name: '/model', description: 'Choose which model to use' },
+    { name: '/login', description: 'Return to the login screen' },
+    { name: '/logout', description: 'Sign out and exit MiniChat' },
     { name: '/clear', description: 'Clear the transcript in current session' },
     { name: '/quit', description: 'Exit MiniChat' },
     { name: '/exit', description: 'Exit MiniChat' }

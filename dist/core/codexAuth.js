@@ -60,6 +60,24 @@ export function hasMinichatCodexAuth() {
         return false;
     }
 }
+export function clearMinichatCodexAuth() {
+    try {
+        if (fs.existsSync(minichatAuthFile)) {
+            fs.unlinkSync(minichatAuthFile);
+        }
+    }
+    catch { }
+}
+export async function runCodexLogout() {
+    await new Promise((resolve) => {
+        const child = spawn('codex', ['logout'], {
+            stdio: ['ignore', 'ignore', 'ignore'],
+            env: process.env,
+        });
+        child.once('error', () => resolve());
+        child.once('close', () => resolve());
+    });
+}
 export async function runCodexLogin(method) {
     const args = method === 'device' ? ['login', '--device-auth'] : ['login'];
     return await new Promise((resolve, reject) => {

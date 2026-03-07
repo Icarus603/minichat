@@ -6,11 +6,10 @@ export function getConfig() {
     try {
         if (fs.existsSync(configFile)) {
             const parsed = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-            if (parsed.provider && parsed.provider !== 'openai') {
-                return null;
-            }
+            const provider = parsed.provider === 'openrouter' ? 'openrouter' : 'openai';
             if (typeof parsed.model === 'string' && (typeof parsed.apiKey === 'string' || parsed.authMode)) {
                 return {
+                    provider,
                     apiKey: parsed.apiKey,
                     model: parsed.model,
                     authMode: parsed.authMode,
@@ -26,6 +25,14 @@ export function saveConfig(config) {
         fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
     initDefaultFiles();
+}
+export function clearConfig() {
+    try {
+        if (fs.existsSync(configFile)) {
+            fs.unlinkSync(configFile);
+        }
+    }
+    catch { }
 }
 // ─── Default persona / memory files ─────────────────────────────────────────
 function initDefaultFiles() {

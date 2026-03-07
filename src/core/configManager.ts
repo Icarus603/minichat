@@ -5,6 +5,7 @@ export const configDir = path.join(process.env['HOME']!, '.minichat');
 const configFile = path.join(configDir, 'config.json');
 
 export interface Config {
+  provider?: 'openai' | 'openrouter';
   apiKey?: string;
   model: string;
   authMode?: 'chatgpt' | 'device' | 'apiKey';
@@ -13,16 +14,12 @@ export interface Config {
 export function getConfig(): Config | null {
   try {
     if (fs.existsSync(configFile)) {
-      const parsed = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as Partial<Config> & {
-        provider?: string;
-      };
-
-      if (parsed.provider && parsed.provider !== 'openai') {
-        return null;
-      }
+      const parsed = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as Partial<Config> & { provider?: string };
+      const provider = parsed.provider === 'openrouter' ? 'openrouter' : 'openai';
 
       if (typeof parsed.model === 'string' && (typeof parsed.apiKey === 'string' || parsed.authMode)) {
         return {
+          provider,
           apiKey: parsed.apiKey,
           model: parsed.model,
           authMode: parsed.authMode,
@@ -37,6 +34,14 @@ export function saveConfig(config: Config): void {
   if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
   initDefaultFiles();
+}
+
+export function clearConfig(): void {
+  try {
+    if (fs.existsSync(configFile)) {
+      fs.unlinkSync(configFile);
+    }
+  } catch {}
 }
 
 // ─── Default persona / memory files ─────────────────────────────────────────
