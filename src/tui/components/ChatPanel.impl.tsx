@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import { Box, Text } from 'ink';
 import type { ChatMessage } from '../../shared/chat.js';
 import { theme } from '../../shared/theme.js';
@@ -20,62 +20,89 @@ const StatusDot: React.FC<{ blinking?: boolean }> = ({ blinking = false }) => {
   return <Text color="#B43A6C">{visible ? '⏺ ' : '  '}</Text>;
 };
 
+type TranscriptMessageProps = {
+  msg: ChatMessage;
+  isLastMessage: boolean;
+  hasLoadingMessage: boolean;
+};
+
+const TranscriptMessage = memo<TranscriptMessageProps>(({
+  msg,
+  isLastMessage,
+  hasLoadingMessage,
+}) => {
+  const marginBottom = !isLastMessage || hasLoadingMessage ? 1 : 0;
+
+  return (
+    <Box flexDirection="column" marginBottom={marginBottom}>
+      {msg.role === 'user' ? (
+        <Box flexDirection="row">
+          <Text color={theme.chatUser}>{'❯ '}</Text>
+          <Box flexGrow={1}>
+            <Text color={theme.chatUser}>{msg.content}</Text>
+          </Box>
+        </Box>
+      ) : msg.role === 'status' ? (
+        <Box flexDirection="row">
+          <Text color="#B43A6C">{'⏺ '}</Text>
+          <Box flexGrow={1}>
+            <Text color="#B43A6C" dimColor>{msg.content}</Text>
+          </Box>
+        </Box>
+      ) : (
+        renderMarkdown(msg.content)
+          .split('\n')
+          .map((line, lineIdx) => (
+            <Box key={lineIdx} flexDirection="row">
+              {lineIdx === 0
+                ? <Text color="#B43A6C">{'⏺ '}</Text>
+                : <Text>{'  '}</Text>
+              }
+              <Box flexGrow={1}>
+                <Text>{line}</Text>
+              </Box>
+            </Box>
+          ))
+      )}
+    </Box>
+  );
+});
+
 export const ChatPanel: React.FC<{
   transcript: ChatMessage[];
   loadingMessage?: string | null;
   loadingBlinking?: boolean;
-}> = ({ transcript, loadingMessage, loadingBlinking = true }) => (
-  <Box flexDirection="column" flexGrow={1} marginBottom={1} paddingX={1}>
-    {transcript.map((msg, idx) => {
-      const isLastMessage = idx === transcript.length - 1;
-      const marginBottom = !isLastMessage || Boolean(loadingMessage) ? 1 : 0;
+}> = ({ transcript, loadingMessage, loadingBlinking = true }) => {
+  const items = useMemo(
+    () => transcript.map((msg, idx) => ({
+      id: `${idx}-${msg.role}`,
+      msg,
+      isLastMessage: idx === transcript.length - 1,
+    })),
+    [transcript],
+  );
 
-      return (
-        <Box key={idx} flexDirection="column" marginBottom={marginBottom}>
-          {msg.role === 'user' ? (
-            <Box flexDirection="row">
-              <Text color={theme.chatUser}>{'❯ '}</Text>
-              {/* flexGrow={1} constrains width so long messages wrap correctly */}
-              <Box flexGrow={1}>
-                <Text color={theme.chatUser}>{msg.content}</Text>
-              </Box>
-            </Box>
-          ) : msg.role === 'status' ? (
-            <Box flexDirection="row">
-              <Text color="#B43A6C">{'⏺ '}</Text>
-              <Box flexGrow={1}>
-                <Text color="#B43A6C" dimColor>{msg.content}</Text>
-              </Box>
-            </Box>
+  return (
+    <Box flexDirection="column" flexGrow={1} marginBottom={1} paddingX={1}>
+      {items.map((item) => (
+        <TranscriptMessage
+          key={item.id}
+          msg={item.msg}
+          isLastMessage={item.isLastMessage}
+          hasLoadingMessage={Boolean(loadingMessage)}
+        />
+      ))}
+
+      {loadingMessage && (
+        <Box flexDirection="row">
+          <StatusDot blinking={loadingBlinking} />
+          {loadingMessage === 'thinking…' ? (
+            <Text color="#888">{loadingMessage}</Text>
           ) : (
-            renderMarkdown(msg.content)
-              .split('\n')
-              .map((line, lineIdx) => (
-                <Box key={`${idx}-${lineIdx}`} flexDirection="row">
-                  {lineIdx === 0
-                    ? <Text color="#B43A6C">{'⏺ '}</Text>
-                    : <Text>{'  '}</Text>
-                  }
-                  {/* flexGrow={1} gives Ink a defined wrap width for each line */}
-                  <Box flexGrow={1}>
-                    <Text>{line}</Text>
-                  </Box>
-                </Box>
-              ))
+            <Text color="#B43A6C" dimColor>{loadingMessage}</Text>
           )}
         </Box>
-      );
-    })}
-
-    {loadingMessage && (
-      <Box flexDirection="row">
-        <StatusDot blinking={loadingBlinking} />
-        {loadingMessage === 'thinking…' ? (
-          <Text color="#888">{loadingMessage}</Text>
-        ) : (
-          <Text color="#B43A6C" dimColor>{loadingMessage}</Text>
-        )}
-      </Box>
-    )}
-  </Box>
-);
+      )}
+    </Box>
+  );
+};

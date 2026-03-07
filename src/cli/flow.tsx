@@ -9,7 +9,7 @@ import { clearLoginState, getImportedCodexApiKey, importCodexAuth, saveChatGPTCo
 import { loadSession } from '../app/controller/sessionController.js';
 import { checkForUpdate, installLatestUpdate } from '../services/updater/updateService.js';
 import { runCodexDeviceLogin, runCodexLogin } from '../services/auth/codexAuthService.js';
-import { enterAlternateScreen, exitAlternateScreen, hardResetTerminal, bindChatResizeLifecycle } from './terminal.js';
+import { enterAlternateScreen, exitAlternateScreen, hardResetTerminal } from './terminal.js';
 
 export async function runSetupFlow(getConfig: () => unknown) {
   while (!getConfig()) {
@@ -178,23 +178,17 @@ export async function runChatAppFlow(sessionId: string) {
     resolveAuthAction = resolve;
   });
   const app = render(renderTree());
-
-  const unbindResize = bindChatResizeLifecycle(app, {
-    onShrink: () => {
-      app.rerender(renderTree());
-    },
-  });
-  const result = await Promise.race([
-    authActionPromise,
-    app.waitUntilExit().then(() => 'exit' as const),
-  ]);
-
-  unbindResize();
-  app.unmount();
-  app.cleanup();
-  exitAlternateScreen();
-  hardResetTerminal();
-  return result;
+  try {
+    return await Promise.race([
+      authActionPromise,
+      app.waitUntilExit().then(() => 'exit' as const),
+    ]);
+  } finally {
+    app.unmount();
+    app.cleanup();
+    exitAlternateScreen();
+    hardResetTerminal();
+  }
 }
 
 export { clearLoginState };

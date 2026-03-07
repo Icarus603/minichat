@@ -14,28 +14,3 @@ export const exitAlternateScreen = () => {
 export const hardResetTerminal = () => {
     process.stdout.write('\x1Bc');
 };
-export function bindChatResizeLifecycle(app, opts) {
-    let previousColumns = process.stdout.columns ?? 0;
-    let previousRows = process.stdout.rows ?? 0;
-    const handleResize = () => {
-        const nextColumns = process.stdout.columns ?? previousColumns;
-        const nextRows = process.stdout.rows ?? previousRows;
-        const expanded = nextColumns > previousColumns || nextRows > previousRows;
-        previousColumns = nextColumns;
-        previousRows = nextRows;
-        if (expanded) {
-            exitAlternateScreen();
-            enterAlternateScreen();
-            app.clear();
-            opts?.onExpand?.();
-            return;
-        }
-        setImmediate(() => {
-            opts?.onShrink?.();
-        });
-    };
-    process.stdout.prependListener('resize', handleResize);
-    return () => {
-        process.stdout.off('resize', handleResize);
-    };
-}
