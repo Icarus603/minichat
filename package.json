@@ -1,6 +1,6 @@
 {
   "name": "minichat",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Beautiful CLI chat with OpenAI, powered by Ink",
   "main": "dist/cli.js",
   "type": "module",
