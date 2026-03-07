@@ -1,6 +1,6 @@
 cask "minichat" do
-  version "1.0.5"
-  sha256 "a0ed8dec0e240e0b93585e36f7b528a0e0e09e39e026e2c6cd201b04f9c80095"
+  version "1.0.6"
+  sha256 "c4295af9225749283dda805f4cc76c8111b6e97a15ff2bcecadea8ddf578902d"
 
   url "https://github.com/Icarus603/minichat/releases/download/v#{version}/minichat-#{version}-macos-arm64.zip"
   name "MiniChat"
