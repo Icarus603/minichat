@@ -1,9 +1,11 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import { listTranscripts, sanitizeTranscriptName } from '../core/transcriptManager.js';
+import { getVisibleWindow } from './popupViewport.js';
 export const SessionsModal = ({ currentSessionId, onResume, onRename, onDelete, onClose }) => {
+    const { stdout } = useStdout();
     const [history, setHistory] = useState(() => listTranscripts());
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [renameMode, setRenameMode] = useState(false);
@@ -13,6 +15,8 @@ export const SessionsModal = ({ currentSessionId, onResume, onRename, onDelete, 
         setHistory(listTranscripts());
     }, []);
     const selected = history[selectedIndex] ?? null;
+    const maxVisibleItems = Math.max(2, Math.min(4, Math.floor(((stdout?.rows ?? 24) - 10) / 3)));
+    const { visibleItems, startIndex } = getVisibleWindow(history, selectedIndex, maxVisibleItems);
     const refreshHistory = () => {
         const next = listTranscripts();
         setHistory(next);
@@ -67,11 +71,12 @@ export const SessionsModal = ({ currentSessionId, onResume, onRename, onDelete, 
             return;
         }
     });
-    return (_jsxs(Box, { flexDirection: "column", paddingLeft: 1, marginTop: 0, children: [_jsx(Text, { color: "#888", children: "Sessions" }), _jsx(Text, { color: "#555", children: "Enter resume, R rename, D delete, Esc close." }), history.length === 0 && _jsx(Text, { color: "#555", children: "No saved conversations." }), history.map((item, index) => {
-                const isSelected = index === selectedIndex;
+    return (_jsxs(Box, { flexDirection: "column", paddingLeft: 1, marginTop: 0, children: [_jsx(Text, { color: "#888", children: "Sessions" }), _jsx(Text, { color: "#555", children: "Enter resume, R rename, D delete, Esc close." }), history.length === 0 && _jsx(Text, { color: "#555", children: "No saved conversations." }), startIndex > 0 && _jsx(Text, { color: "#555", children: "\u2026" }), visibleItems.map((item, index) => {
+                const absoluteIndex = startIndex + index;
+                const isSelected = absoluteIndex === selectedIndex;
                 const isCurrent = item.id === currentSessionId;
                 return (_jsxs(Box, { flexDirection: "column", children: [_jsxs(Text, { color: isSelected ? '#B43A6C' : '#FFF', children: [`${isSelected ? '❯' : ' '} ${item.name}`, _jsx(Text, { color: isCurrent ? '#B43A6C' : '#777', children: isCurrent ? '  current' : `  ${item.date}` })] }), _jsx(Text, { color: "#777", children: `   ${item.preview}` }), _jsx(Text, { color: "#555", children: `   ${item.messageCount} messages` })] }, item.id));
-            }), renameMode && selected && (_jsxs(Box, { flexDirection: "column", children: [_jsx(Text, { color: "#888", children: "Rename session" }), _jsxs(Box, { children: [_jsx(Text, { color: "#B43A6C", children: '> ' }), _jsx(TextInput, { value: renameValue, onChange: setRenameValue, onSubmit: (value) => {
+            }), startIndex + visibleItems.length < history.length && _jsx(Text, { color: "#555", children: "\u2026" }), renameMode && selected && (_jsxs(Box, { flexDirection: "column", children: [_jsx(Text, { color: "#888", children: "Rename session" }), _jsxs(Box, { children: [_jsx(Text, { color: "#B43A6C", children: '> ' }), _jsx(TextInput, { value: renameValue, onChange: setRenameValue, onSubmit: (value) => {
                                     const nextName = sanitizeTranscriptName(value);
                                     if (!nextName) {
                                         setError('Session name cannot be empty.');

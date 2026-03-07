@@ -19,12 +19,7 @@ function buildResponsesInput(messages) {
         .filter((message) => message.role === 'user' || message.role === 'ai')
         .map((message) => ({
         role: message.role === 'user' ? 'user' : 'assistant',
-        content: [
-            {
-                type: 'input_text',
-                text: message.content,
-            },
-        ],
+        content: message.content,
     }));
 }
 function extractTextFromResponse(response) {

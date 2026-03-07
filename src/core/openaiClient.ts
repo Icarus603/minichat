@@ -20,18 +20,13 @@ function buildSystemPrompt(): string {
 
 function buildResponsesInput(messages: ChatMessage[]): Array<{
   role: 'user' | 'assistant';
-  content: Array<{ type: 'input_text'; text: string }>;
+  content: string;
 }> {
   return messages
     .filter((message) => message.role === 'user' || message.role === 'ai')
     .map((message) => ({
       role: message.role === 'user' ? 'user' : 'assistant',
-      content: [
-        {
-          type: 'input_text',
-          text: message.content,
-        },
-      ],
+      content: message.content,
     }));
 }
 

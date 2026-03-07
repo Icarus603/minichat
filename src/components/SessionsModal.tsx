@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import { listTranscripts, sanitizeTranscriptName, type TranscriptSummary } from '../core/transcriptManager.js';
+import { getVisibleWindow } from './popupViewport.js';
 
 export const SessionsModal: React.FC<{
   currentSessionId: string;
@@ -10,6 +11,7 @@ export const SessionsModal: React.FC<{
   onDelete: (transcriptId: string) => void;
   onClose: () => void;
 }> = ({ currentSessionId, onResume, onRename, onDelete, onClose }) => {
+  const { stdout } = useStdout();
   const [history, setHistory] = useState<TranscriptSummary[]>(() => listTranscripts());
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [renameMode, setRenameMode] = useState(false);
@@ -21,6 +23,8 @@ export const SessionsModal: React.FC<{
   }, []);
 
   const selected = history[selectedIndex] ?? null;
+  const maxVisibleItems = Math.max(2, Math.min(4, Math.floor(((stdout?.rows ?? 24) - 10) / 3)));
+  const { visibleItems, startIndex } = getVisibleWindow(history, selectedIndex, maxVisibleItems);
 
   const refreshHistory = () => {
     const next = listTranscripts();
@@ -90,8 +94,10 @@ export const SessionsModal: React.FC<{
       <Text color="#888">Sessions</Text>
       <Text color="#555">Enter resume, R rename, D delete, Esc close.</Text>
       {history.length === 0 && <Text color="#555">No saved conversations.</Text>}
-      {history.map((item, index) => {
-        const isSelected = index === selectedIndex;
+      {startIndex > 0 && <Text color="#555">…</Text>}
+      {visibleItems.map((item, index) => {
+        const absoluteIndex = startIndex + index;
+        const isSelected = absoluteIndex === selectedIndex;
         const isCurrent = item.id === currentSessionId;
         return (
           <Box key={item.id} flexDirection="column">
@@ -104,6 +110,7 @@ export const SessionsModal: React.FC<{
           </Box>
         );
       })}
+      {startIndex + visibleItems.length < history.length && <Text color="#555">…</Text>}
       {renameMode && selected && (
         <Box flexDirection="column">
           <Text color="#888">Rename session</Text>

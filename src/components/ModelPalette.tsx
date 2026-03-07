@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useStdout } from 'ink';
 import type { ModelOption, ReasoningEffort } from '../core/modelCatalog.js';
+import { getVisibleWindow } from './popupViewport.js';
 
 export const ModelPalette: React.FC<{
   stage: 'model' | 'effort';
@@ -23,7 +24,11 @@ export const ModelPalette: React.FC<{
   query,
   effortOptions,
 }) => {
+  const { stdout } = useStdout();
   const maxLen = models.reduce((m, model) => Math.max(m, model.id.length), 0);
+  const maxVisibleItems = Math.max(4, Math.min(8, (stdout?.rows ?? 24) - 10));
+  const visibleModelWindow = getVisibleWindow(models, selectedIndex, maxVisibleItems);
+  const visibleEffortWindow = getVisibleWindow(effortOptions, selectedIndex, maxVisibleItems);
 
   return (
     <Box flexDirection="column" paddingLeft={1} marginTop={0}>
@@ -38,33 +43,51 @@ export const ModelPalette: React.FC<{
       ) : stage === 'model' && models.length === 0 ? (
         <Text color="#555">No models available for this login.</Text>
       ) : stage === 'effort' ? (
-        effortOptions.map((effort, idx) => (
+        <>
+          {visibleEffortWindow.startIndex > 0 && <Text color="#555">…</Text>}
+          {visibleEffortWindow.visibleItems.map((effort, idx) => {
+            const absoluteIndex = visibleEffortWindow.startIndex + idx;
+            return (
           <Box key={effort} flexDirection="row">
-            <Text color={idx === selectedIndex ? '#B43A6C' : '#555'}>
-              {idx === selectedIndex ? '❯ ' : '  '}
+            <Text color={absoluteIndex === selectedIndex ? '#B43A6C' : '#555'}>
+              {absoluteIndex === selectedIndex ? '❯ ' : '  '}
             </Text>
-            <Text color={idx === selectedIndex ? '#FFF' : '#888'} bold={idx === selectedIndex}>
+            <Text color={absoluteIndex === selectedIndex ? '#FFF' : '#888'} bold={absoluteIndex === selectedIndex}>
               {effort}
             </Text>
             <Text color={effort === currentReasoningEffort ? '#B43A6C' : '#555'}>
               {effort === currentReasoningEffort ? '  current' : ''}
             </Text>
           </Box>
-        ))
+            );
+          })}
+          {visibleEffortWindow.startIndex + visibleEffortWindow.visibleItems.length < effortOptions.length && (
+            <Text color="#555">…</Text>
+          )}
+        </>
       ) : (
-        models.map((model, idx) => (
+        <>
+          {visibleModelWindow.startIndex > 0 && <Text color="#555">…</Text>}
+          {visibleModelWindow.visibleItems.map((model, idx) => {
+            const absoluteIndex = visibleModelWindow.startIndex + idx;
+            return (
           <Box key={model.id} flexDirection="row">
-            <Text color={idx === selectedIndex ? '#B43A6C' : '#555'}>
-              {idx === selectedIndex ? '❯ ' : '  '}
+            <Text color={absoluteIndex === selectedIndex ? '#B43A6C' : '#555'}>
+              {absoluteIndex === selectedIndex ? '❯ ' : '  '}
             </Text>
-            <Text color={idx === selectedIndex ? '#FFF' : '#888'} bold={idx === selectedIndex}>
+            <Text color={absoluteIndex === selectedIndex ? '#FFF' : '#888'} bold={absoluteIndex === selectedIndex}>
               {model.id.padEnd(maxLen)}
             </Text>
             <Text color={model.id === currentModel ? '#B43A6C' : '#555'}>
               {model.id === currentModel ? '  current' : ''}
             </Text>
           </Box>
-        ))
+            );
+          })}
+          {visibleModelWindow.startIndex + visibleModelWindow.visibleItems.length < models.length && (
+            <Text color="#555">…</Text>
+          )}
+        </>
       )}
     </Box>
   );

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useStdout } from 'ink';
 import { listTranscripts, type TranscriptSummary } from '../core/transcriptManager.js';
+import { getVisibleWindow } from './popupViewport.js';
 
 export const ResumeModal: React.FC<{
   onSelect: (transcriptId: string | null) => void;
 }> = ({ onSelect }) => {
+  const { stdout } = useStdout();
   const history = listTranscripts();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const maxVisibleItems = Math.max(2, Math.min(4, Math.floor(((stdout?.rows ?? 24) - 10) / 3)));
+  const { visibleItems, startIndex } = getVisibleWindow(history, selectedIndex, maxVisibleItems);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -51,12 +55,14 @@ export const ResumeModal: React.FC<{
       {history.length === 0 && (
         <Text color="#555">No saved conversations. Press Enter or Esc to continue.</Text>
       )}
-      {history.map((item: TranscriptSummary, index) => {
-        const selected = index === selectedIndex;
+      {startIndex > 0 && <Text color="#555">…</Text>}
+      {visibleItems.map((item: TranscriptSummary, index) => {
+        const absoluteIndex = startIndex + index;
+        const selected = absoluteIndex === selectedIndex;
         return (
           <Box key={item.id} flexDirection="column" marginTop={1}>
             <Text color={selected ? '#B43A6C' : '#FFF'}>
-              {`${selected ? '>' : ' '} ${index + 1}. ${item.name}`}
+              {`${selected ? '>' : ' '} ${absoluteIndex + 1}. ${item.name}`}
               <Text color="#777">{`  ${item.date}`}</Text>
             </Text>
             <Text color="#777">{`   ${item.preview}`}</Text>
@@ -64,6 +70,7 @@ export const ResumeModal: React.FC<{
           </Box>
         );
       })}
+      {startIndex + visibleItems.length < history.length && <Text color="#555">…</Text>}
     </Box>
   );
 };
