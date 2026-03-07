@@ -9,7 +9,7 @@ import { backspace, clearEditor, createInputEditorState, deleteForward, getRende
 const DOUBLE_ESCAPE_MS = 400;
 const BACKSPACE_SEQUENCES = new Set(['\b', '\x7f']);
 const FORWARD_DELETE_SEQUENCES = new Set(['\x1b[3~']);
-export const InputBox = ({ onSend, onCommand, sessionsOpen, modelPickerOpen, modelPickerStage, modelPickerLoading, modelPickerError, modelOptions, modelSelectedIndex, currentModel, currentReasoningEffort, modelQuery, modelEffortOptions, onModelMove, onModelSelect, onModelClose, onModelQueryChange, }) => {
+export const InputBox = ({ onSend, loading, onInterrupt, onCommand, sessionsOpen, modelPickerOpen, modelPickerStage, modelPickerLoading, modelPickerError, modelOptions, modelSelectedIndex, currentModel, currentReasoningEffort, modelQuery, modelEffortOptions, onModelMove, onModelSelect, onModelClose, onModelQueryChange, }) => {
     const [editor, setEditor] = useState(createInputEditorState());
     const [showPalette, setShowPalette] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -34,6 +34,10 @@ export const InputBox = ({ onSend, onCommand, sessionsOpen, modelPickerOpen, mod
         const sequence = lastSequenceRef.current;
         const backwardDelete = BACKSPACE_SEQUENCES.has(sequence) || key.backspace || input === '\b' || input === '\x7f';
         const forwardDelete = FORWARD_DELETE_SEQUENCES.has(sequence) || (key.delete && !backwardDelete);
+        if (loading && key.escape) {
+            onInterrupt();
+            return;
+        }
         if (sessionsOpen) {
             return;
         }

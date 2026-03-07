@@ -54,12 +54,12 @@ function createClient(config) {
             : undefined,
     });
 }
-export async function runBackgroundPrompt(prompt, config) {
+export async function runBackgroundPrompt(prompt, config, signal) {
     if (!config.apiKey) {
         if (!hasMinichatCodexAuth()) {
             throw new Error('Missing OpenAI API key and ChatGPT auth. Re-run setup.');
         }
-        return await chatWithCodexAuth([{ role: 'user', content: prompt }], config.model, config.reasoningEffort, 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.');
+        return await chatWithCodexAuth([{ role: 'user', content: prompt }], config.model, config.reasoningEffort, 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.', signal);
     }
     const client = createClient(config);
     if (config.provider === 'openrouter') {
@@ -76,7 +76,7 @@ export async function runBackgroundPrompt(prompt, config) {
                     content: prompt,
                 },
             ],
-        });
+        }, signal ? { signal } : undefined);
         return response.choices[0]?.message?.content ?? '';
     }
     const response = await client.responses.create({
@@ -88,17 +88,17 @@ export async function runBackgroundPrompt(prompt, config) {
                 effort: config.reasoningEffort,
             }
             : undefined,
-    });
+    }, signal ? { signal } : undefined);
     return extractTextFromResponse(response);
 }
-export async function chat(messages, config) {
+export async function chat(messages, config, signal) {
     const system = buildSystemPrompt();
     const systemMessages = system ? [{ role: 'system', content: system }] : [];
     if (!config.apiKey) {
         if (!hasMinichatCodexAuth()) {
             throw new Error('Missing OpenAI API key and ChatGPT auth. Re-run setup.');
         }
-        return await chatWithCodexAuth(messages, config.model, config.reasoningEffort, system);
+        return await chatWithCodexAuth(messages, config.model, config.reasoningEffort, system, signal);
     }
     const client = createClient(config);
     if (config.provider === 'openrouter') {
@@ -114,7 +114,7 @@ export async function chat(messages, config) {
                     content: m.content,
                 })),
             ],
-        });
+        }, signal ? { signal } : undefined);
         return response.choices[0]?.message?.content ?? '(no response)';
     }
     const response = await client.responses.create({
@@ -126,6 +126,6 @@ export async function chat(messages, config) {
                 effort: config.reasoningEffort,
             }
             : undefined,
-    });
+    }, signal ? { signal } : undefined);
     return extractTextFromResponse(response) || '(no response)';
 }

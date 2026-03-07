@@ -206,7 +206,7 @@ function buildCodexPrompt(messages, systemPrompt) {
     sections.push('Do not include role labels.');
     return sections.join('\n\n');
 }
-export async function chatWithCodexAuth(messages, model, reasoningEffort, systemPrompt) {
+export async function chatWithCodexAuth(messages, model, reasoningEffort, systemPrompt, signal) {
     const prompt = buildCodexPrompt(messages, systemPrompt);
     const args = [
         'exec',
@@ -240,8 +240,25 @@ export async function chatWithCodexAuth(messages, model, reasoningEffort, system
         child.stderr.on('data', (chunk) => {
             stderr += chunk;
         });
+        const abortHandler = () => {
+            child.kill('SIGTERM');
+            reject(new Error('Request interrupted'));
+        };
+        if (signal) {
+            if (signal.aborted) {
+                abortHandler();
+                return;
+            }
+            signal.addEventListener('abort', abortHandler, { once: true });
+        }
         child.once('error', reject);
         child.once('close', (code) => {
+            if (signal) {
+                signal.removeEventListener('abort', abortHandler);
+            }
+            if (signal?.aborted) {
+                return;
+            }
             if (code !== 0) {
                 reject(new Error(stderr.trim() || `codex exec failed with exit code ${code}`));
                 return;

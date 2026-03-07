@@ -26,6 +26,8 @@ const FORWARD_DELETE_SEQUENCES = new Set(['\x1b[3~']);
 
 export const InputBox: React.FC<{
   onSend: (input: string) => void;
+  loading: boolean;
+  onInterrupt: () => void;
   onCommand: (cmd: string) => void;
   sessionsOpen: boolean;
   modelPickerOpen: boolean;
@@ -44,6 +46,8 @@ export const InputBox: React.FC<{
   onModelQueryChange: (query: string) => void;
 }> = ({
   onSend,
+  loading,
+  onInterrupt,
   onCommand,
   sessionsOpen,
   modelPickerOpen,
@@ -90,6 +94,11 @@ export const InputBox: React.FC<{
     const sequence = lastSequenceRef.current;
     const backwardDelete = BACKSPACE_SEQUENCES.has(sequence) || key.backspace || input === '\b' || input === '\x7f';
     const forwardDelete = FORWARD_DELETE_SEQUENCES.has(sequence) || (key.delete && !backwardDelete);
+
+    if (loading && key.escape) {
+      onInterrupt();
+      return;
+    }
 
     if (sessionsOpen) {
       return;

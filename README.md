@@ -1,53 +1,102 @@
 # MiniChat
 
-MiniChat is a terminal chatbot built with Ink, React, and Bun.
+MiniChat is a command-line chatbot for macOS that grows with you.
 
-It uses OpenAI models, supports ChatGPT sign-in through the official `codex login` flow, and keeps its own local app state under `~/.minichat/`.
+It remembers your preferences, your ongoing context, and the way you like to be spoken to, so each conversation feels less like starting over and more like returning to someone who already knows you.
 
-## Features
+It supports:
+- `Sign in with ChatGPT`
+- `Sign in with Device Code`
+- `OpenAI API key`
+- `OpenRouter API key`
 
-- ChatGPT login flow backed by the official Codex CLI
-- Fallback manual API key setup
-- Persistent local config, memory, and persona files in `~/.minichat/`
-- Rich terminal UI with multiline input, cursor movement, slash commands, and markdown rendering
-- Fullscreen-aware rendering fixes for terminal resize transitions
+MiniChat keeps its own state in `~/.minichat/`, remembers your ongoing context through `SOUL.md`, and lets you resume past sessions from the terminal.
 
-## Requirements
+## Demo
 
-- Bun
-- Node.js
-- `codex` installed if you want to use `Sign in with ChatGPT` or `Sign in with Device Code`
+<video src="./assets/demo.mov" controls muted playsinline></video>
+
+If your Markdown viewer does not render the embedded video, open [`assets/demo.mov`](./assets/demo.mov) directly.
+
+## Platform
+
+MiniChat currently supports **macOS only**.
 
 ## Install
+
+### Homebrew cask
+
+Once the cask is published, install with:
+
+```bash
+brew install --cask minichat
+```
+
+Then start MiniChat from any directory:
+
+```bash
+minichat
+```
+
+Resume a previous conversation:
+
+```bash
+minichat --resume
+```
+
+### From source
+
+If you are running from the repository:
 
 ```bash
 bun install
 bun run build
-```
-
-## Run
-
-```bash
-node dist/cli.js
-```
-
-or:
-
-```bash
 ./bin/minichat
 ```
 
-On first launch, MiniChat opens a setup screen with three options:
+## First Launch
+
+On first launch, MiniChat opens a setup screen. You can choose one of these login methods:
 
 1. `Sign in with ChatGPT`
 2. `Sign in with Device Code`
-3. `Provide your own API key`
+3. `Use OpenAI API key`
+4. `Use OpenRouter API key`
 
-For ChatGPT-based login, MiniChat delegates authentication to the official Codex CLI, then stores its own usable local state in `~/.minichat/`.
+If you use `Sign in with ChatGPT` or `Sign in with Device Code`, MiniChat delegates authentication to the official `codex` CLI.
+
+## Requirements
+
+- macOS
+- `codex` installed if you want to use ChatGPT or device-code login
+
+## Everyday Use
+
+Start a new chat:
+
+```bash
+minichat
+```
+
+Open the session picker at startup:
+
+```bash
+minichat --resume
+```
+
+Inside MiniChat, the most useful commands are:
+
+- `/model` — switch model and, when supported, reasoning effort
+- `/new` — start a new conversation
+- `/sessions` — browse, resume, rename, or delete saved sessions
+- `/login` — clear the current login and return to the login screen
+- `/logout` — clear the current login and exit
+- `/clear` — clear the current conversation
+- `/quit` or `/exit` — leave MiniChat
 
 ## Local Files
 
-MiniChat stores its app data here:
+MiniChat stores its local data under:
 
 ```text
 ~/.minichat/
@@ -55,22 +104,13 @@ MiniChat stores its app data here:
 
 Important files:
 
-- `config.json`: active model and auth mode
-- `auth.json`: imported ChatGPT auth state for Codex-backed chatting
-- `SOUL.md`: default personality / tone
-- `MEMORY.md`: persistent personal notes
+- `config.json` — current auth mode, provider, model, and settings
+- `auth.json` — imported ChatGPT auth state for Codex-backed use
+- `SOUL.md` — MiniChat’s evolving long-term context, preferences, and relationship style
+- `transcripts/` — saved chat sessions used by `minichat --resume` and `/sessions`
 
-## Commands
+## Notes
 
-- `/clear`: clear the current transcript
-- `/quit`
-- `/exit`
-
-## Development
-
-```bash
-bun run build
-node dist/cli.js
-```
-
-This repo currently commits `dist/` output on purpose, so rebuild after source changes before committing.
+- `OpenAI API key` now uses OpenAI’s newer `Responses API`
+- `ChatGPT` / `Device Code` auth still runs through `codex exec`
+- `OpenRouter` stays on the OpenAI-compatible `Chat Completions` path for now

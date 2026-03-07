@@ -85,9 +85,9 @@ function buildEvolutionPrompt(messages, soulText) {
         conversation,
     ].join('\n');
 }
-export async function analyzeContextEvolution(messages, config) {
+export async function analyzeContextEvolution(messages, config, signal) {
     const prompt = buildEvolutionPrompt(messages, readSoulText());
-    const raw = await runBackgroundPrompt(prompt, config);
+    const raw = await runBackgroundPrompt(prompt, config, signal);
     return parseEvolutionResult(raw);
 }
 export function applyContextEvolution(result) {

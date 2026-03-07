@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, useApp } from 'ink';
 import { WelcomePanel } from './WelcomePanel.js';
 import { ChatPanel } from './ChatPanel.js';
@@ -27,6 +27,7 @@ export const App: React.FC<{
   onAuthAction: (action: 'login' | 'logout') => void;
 }> = ({ sessionId, initialTranscript = [], onAuthAction }) => {
   const { exit } = useApp();
+  const activeRequestRef = useRef<AbortController | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState(sessionId);
   const [transcript, setTranscript] = useState<ChatMessage[]>(initialTranscript);
   const [loading, setLoading] = useState(false);
@@ -42,13 +43,29 @@ export const App: React.FC<{
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [loadingState, setLoadingState] = useState<LoadingState>(null);
 
+  const isInterruptedError = (error: unknown) => {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    return error.name === 'AbortError' ||
+      error.message === 'Request interrupted' ||
+      error.message.toLowerCase().includes('aborted');
+  };
+
   const filteredModelOptions = modelOptions.filter(model =>
     model.id.toLowerCase().includes(modelQuery.trim().toLowerCase())
   );
 
   const handleSend = async (input: string) => {
+    if (loading) {
+      return;
+    }
+
     const userMsg: ChatMessage = { role: 'user', content: input };
     const updated = [...transcript, userMsg];
+    const requestController = new AbortController();
+    activeRequestRef.current = requestController;
     setTranscript(updated);
     saveTranscript(currentSessionId, updated);
     setLoading(true);
@@ -56,7 +73,7 @@ export const App: React.FC<{
 
     try {
       const config = getConfig()!;
-      const planned = await analyzeContextEvolution(updated, config);
+      const planned = await analyzeContextEvolution(updated, config, requestController.signal);
       const statusMessages: ChatMessage[] = [];
 
       if (planned.soul.length > 0) {
@@ -66,12 +83,19 @@ export const App: React.FC<{
         }
       }
 
-      const response = await chat(updated, config);
+      const response = await chat(updated, config, requestController.signal);
       const aiMsg: ChatMessage = { role: 'ai', content: response };
       const final = [...updated, ...statusMessages, aiMsg];
       setTranscript(final);
       saveTranscript(currentSessionId, final);
     } catch (err) {
+      if (isInterruptedError(err)) {
+        const interrupted = [...updated, { role: 'status' as const, content: 'Generation stopped' }];
+        setTranscript(interrupted);
+        saveTranscript(currentSessionId, interrupted);
+        return;
+      }
+
       const errMsg: ChatMessage = {
         role: 'ai',
         content: `Error: ${err instanceof Error ? err.message : String(err)}`,
@@ -80,9 +104,17 @@ export const App: React.FC<{
       setTranscript(final);
       saveTranscript(currentSessionId, final);
     } finally {
+      if (activeRequestRef.current === requestController) {
+        activeRequestRef.current = null;
+      }
+
       setLoading(false);
       setLoadingState(null);
     }
+  };
+
+  const handleInterrupt = () => {
+    activeRequestRef.current?.abort();
   };
 
   const openModelPicker = async () => {
@@ -258,6 +290,8 @@ export const App: React.FC<{
       />
       <InputBox
         onSend={handleSend}
+        loading={loading}
+        onInterrupt={handleInterrupt}
         onCommand={handleCommand}
         sessionsOpen={sessionsOpen}
         modelPickerOpen={modelPickerOpen}

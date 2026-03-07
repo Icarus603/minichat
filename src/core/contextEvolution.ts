@@ -111,9 +111,10 @@ function buildEvolutionPrompt(messages: ChatMessage[], soulText: string): string
 export async function analyzeContextEvolution(
   messages: ChatMessage[],
   config: Config,
+  signal?: AbortSignal,
 ): Promise<ContextEvolutionResult> {
   const prompt = buildEvolutionPrompt(messages, readSoulText());
-  const raw = await runBackgroundPrompt(prompt, config);
+  const raw = await runBackgroundPrompt(prompt, config, signal);
   return parseEvolutionResult(raw);
 }
 

@@ -284,6 +284,7 @@ export async function chatWithCodexAuth(
   model: string | undefined,
   reasoningEffort: string | undefined,
   systemPrompt: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const prompt = buildCodexPrompt(messages, systemPrompt);
   const args = [
@@ -327,9 +328,31 @@ export async function chatWithCodexAuth(
       stderr += chunk;
     });
 
+    const abortHandler = () => {
+      child.kill('SIGTERM');
+      reject(new Error('Request interrupted'));
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        abortHandler();
+        return;
+      }
+
+      signal.addEventListener('abort', abortHandler, { once: true });
+    }
+
     child.once('error', reject);
 
     child.once('close', (code) => {
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
+
+      if (signal?.aborted) {
+        return;
+      }
+
       if (code !== 0) {
         reject(new Error(stderr.trim() || `codex exec failed with exit code ${code}`));
         return;

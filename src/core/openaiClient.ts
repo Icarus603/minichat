@@ -70,7 +70,7 @@ function createClient(config: Config): OpenAI {
   });
 }
 
-export async function runBackgroundPrompt(prompt: string, config: Config): Promise<string> {
+export async function runBackgroundPrompt(prompt: string, config: Config, signal?: AbortSignal): Promise<string> {
   if (!config.apiKey) {
     if (!hasMinichatCodexAuth()) {
       throw new Error('Missing OpenAI API key and ChatGPT auth. Re-run setup.');
@@ -81,6 +81,7 @@ export async function runBackgroundPrompt(prompt: string, config: Config): Promi
       config.model,
       config.reasoningEffort,
       'You are doing an internal MiniChat background analysis task. Reply only with the requested output.',
+      signal,
     );
   }
 
@@ -99,7 +100,7 @@ export async function runBackgroundPrompt(prompt: string, config: Config): Promi
           content: prompt,
         },
       ],
-    });
+    }, signal ? { signal } : undefined);
 
     return response.choices[0]?.message?.content ?? '';
   }
@@ -113,12 +114,12 @@ export async function runBackgroundPrompt(prompt: string, config: Config): Promi
           effort: config.reasoningEffort,
         }
       : undefined,
-  });
+  }, signal ? { signal } : undefined);
 
   return extractTextFromResponse(response);
 }
 
-export async function chat(messages: ChatMessage[], config: Config): Promise<string> {
+export async function chat(messages: ChatMessage[], config: Config, signal?: AbortSignal): Promise<string> {
   const system = buildSystemPrompt();
   const systemMessages: { role: 'system'; content: string }[] =
     system ? [{ role: 'system', content: system }] : [];
@@ -128,7 +129,7 @@ export async function chat(messages: ChatMessage[], config: Config): Promise<str
       throw new Error('Missing OpenAI API key and ChatGPT auth. Re-run setup.');
     }
 
-    return await chatWithCodexAuth(messages, config.model, config.reasoningEffort, system);
+    return await chatWithCodexAuth(messages, config.model, config.reasoningEffort, system, signal);
   }
 
   const client = createClient(config);
@@ -146,7 +147,7 @@ export async function chat(messages: ChatMessage[], config: Config): Promise<str
             content: m.content,
           })),
       ],
-    });
+    }, signal ? { signal } : undefined);
 
     return response.choices[0]?.message?.content ?? '(no response)';
   }
@@ -160,7 +161,7 @@ export async function chat(messages: ChatMessage[], config: Config): Promise<str
           effort: config.reasoningEffort,
         }
       : undefined,
-  });
+  }, signal ? { signal } : undefined);
 
   return extractTextFromResponse(response) || '(no response)';
 }

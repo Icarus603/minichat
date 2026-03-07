@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Box, useApp } from 'ink';
 import { WelcomePanel } from './WelcomePanel.js';
 import { ChatPanel } from './ChatPanel.js';
@@ -14,6 +14,7 @@ import { SessionsModal } from './SessionsModal.js';
 const createSessionId = () => new Date().toISOString().replace(/[:.]/g, '-');
 export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
     const { exit } = useApp();
+    const activeRequestRef = useRef(null);
     const [currentSessionId, setCurrentSessionId] = useState(sessionId);
     const [transcript, setTranscript] = useState(initialTranscript);
     const [loading, setLoading] = useState(false);
@@ -28,17 +29,30 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
     const [pendingModel, setPendingModel] = useState(null);
     const [sessionsOpen, setSessionsOpen] = useState(false);
     const [loadingState, setLoadingState] = useState(null);
+    const isInterruptedError = (error) => {
+        if (!(error instanceof Error)) {
+            return false;
+        }
+        return error.name === 'AbortError' ||
+            error.message === 'Request interrupted' ||
+            error.message.toLowerCase().includes('aborted');
+    };
     const filteredModelOptions = modelOptions.filter(model => model.id.toLowerCase().includes(modelQuery.trim().toLowerCase()));
     const handleSend = async (input) => {
+        if (loading) {
+            return;
+        }
         const userMsg = { role: 'user', content: input };
         const updated = [...transcript, userMsg];
+        const requestController = new AbortController();
+        activeRequestRef.current = requestController;
         setTranscript(updated);
         saveTranscript(currentSessionId, updated);
         setLoading(true);
         setLoadingState({ message: 'thinking…', blinking: true });
         try {
             const config = getConfig();
-            const planned = await analyzeContextEvolution(updated, config);
+            const planned = await analyzeContextEvolution(updated, config, requestController.signal);
             const statusMessages = [];
             if (planned.soul.length > 0) {
                 const applied = applyContextEvolution(planned);
@@ -46,13 +60,19 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
                     statusMessages.push({ role: 'status', content: 'SOUL updated' });
                 }
             }
-            const response = await chat(updated, config);
+            const response = await chat(updated, config, requestController.signal);
             const aiMsg = { role: 'ai', content: response };
             const final = [...updated, ...statusMessages, aiMsg];
             setTranscript(final);
             saveTranscript(currentSessionId, final);
         }
         catch (err) {
+            if (isInterruptedError(err)) {
+                const interrupted = [...updated, { role: 'status', content: 'Generation stopped' }];
+                setTranscript(interrupted);
+                saveTranscript(currentSessionId, interrupted);
+                return;
+            }
             const errMsg = {
                 role: 'ai',
                 content: `Error: ${err instanceof Error ? err.message : String(err)}`,
@@ -62,9 +82,15 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
             saveTranscript(currentSessionId, final);
         }
         finally {
+            if (activeRequestRef.current === requestController) {
+                activeRequestRef.current = null;
+            }
             setLoading(false);
             setLoadingState(null);
         }
+    };
+    const handleInterrupt = () => {
+        activeRequestRef.current?.abort();
     };
     const openModelPicker = async () => {
         const config = getConfig();
@@ -206,7 +232,7 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
         setModelQuery(query);
         setModelSelectedIndex(0);
     };
-    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(WelcomePanel, {}), _jsx(ChatPanel, { transcript: transcript, loadingMessage: loading ? loadingState?.message ?? 'thinking…' : null, loadingBlinking: loading ? loadingState?.blinking ?? true : false }), _jsx(InputBox, { onSend: handleSend, onCommand: handleCommand, sessionsOpen: sessionsOpen, modelPickerOpen: modelPickerOpen, modelPickerStage: modelPickerStage, modelPickerLoading: modelPickerLoading, modelPickerError: modelPickerError, modelOptions: filteredModelOptions, modelSelectedIndex: modelSelectedIndex, currentModel: getConfig()?.model ?? '', currentReasoningEffort: getConfig()?.reasoningEffort, modelQuery: modelQuery, modelEffortOptions: modelEffortOptions, onModelMove: handleModelMove, onModelSelect: handleModelSelect, onModelClose: handleModelClose, onModelQueryChange: handleModelQueryChange }), sessionsOpen && (_jsx(SessionsModal, { currentSessionId: currentSessionId, onResume: (nextSessionId) => {
+    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(WelcomePanel, {}), _jsx(ChatPanel, { transcript: transcript, loadingMessage: loading ? loadingState?.message ?? 'thinking…' : null, loadingBlinking: loading ? loadingState?.blinking ?? true : false }), _jsx(InputBox, { onSend: handleSend, loading: loading, onInterrupt: handleInterrupt, onCommand: handleCommand, sessionsOpen: sessionsOpen, modelPickerOpen: modelPickerOpen, modelPickerStage: modelPickerStage, modelPickerLoading: modelPickerLoading, modelPickerError: modelPickerError, modelOptions: filteredModelOptions, modelSelectedIndex: modelSelectedIndex, currentModel: getConfig()?.model ?? '', currentReasoningEffort: getConfig()?.reasoningEffort, modelQuery: modelQuery, modelEffortOptions: modelEffortOptions, onModelMove: handleModelMove, onModelSelect: handleModelSelect, onModelClose: handleModelClose, onModelQueryChange: handleModelQueryChange }), sessionsOpen && (_jsx(SessionsModal, { currentSessionId: currentSessionId, onResume: (nextSessionId) => {
                     setCurrentSessionId(nextSessionId);
                     setTranscript(loadTranscript(nextSessionId));
                     setSessionsOpen(false);
