@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 import { jsx as _jsx } from "react/jsx-runtime";
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { render } from 'ink';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -14,14 +11,6 @@ import { resolvePostChatAction } from './core/appFlow.js';
 import { clearConfig, getConfig, saveConfig } from './core/configManager.js';
 import { clearMinichatCodexAuth, readCodexApiKey, runCodexDeviceLogin, runCodexLogin, runCodexLogout, saveMinichatCodexAuth } from './core/codexAuth.js';
 import { loadTranscript } from './core/transcriptManager.js';
-const require = createRequire(import.meta.url);
-const loadInkInstances = async () => {
-    const inkEntry = require.resolve('ink');
-    const inkBuildDir = dirname(inkEntry);
-    const instancesUrl = pathToFileURL(join(inkBuildDir, 'instances.js')).href;
-    const module = (await import(instancesUrl));
-    return module.default;
-};
 const enterAlternateScreen = () => {
     if (!process.stdout.isTTY)
         return;
@@ -176,8 +165,6 @@ const runChatApp = async (sessionId, initialTranscript = loadTranscript(sessionI
     const app = render(_jsx(App, { sessionId: sessionId, initialTranscript: initialTranscript, onAuthAction: (action) => {
             resolveAuthAction?.(action);
         } }));
-    const instances = await loadInkInstances();
-    const instance = instances.get(process.stdout);
     let previousColumns = process.stdout.columns ?? 0;
     let previousRows = process.stdout.rows ?? 0;
     const handleResize = () => {
@@ -188,14 +175,6 @@ const runChatApp = async (sessionId, initialTranscript = loadTranscript(sessionI
         previousRows = nextRows;
         if (!expanded)
             return;
-        if (instance) {
-            instance.throttledOnRender?.cancel?.();
-            instance.throttledLog?.cancel?.();
-            instance.lastOutput = '';
-            instance.lastOutputToRender = '';
-            instance.lastOutputHeight = 0;
-            instance.fullStaticOutput = '';
-        }
         exitAlternateScreen();
         enterAlternateScreen();
         app.clear();
