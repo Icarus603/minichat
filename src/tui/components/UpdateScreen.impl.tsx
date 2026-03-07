@@ -16,6 +16,7 @@ type Props = {
 
 export const UpdateScreen: React.FC<Props> = ({ update, onDone, onInstall }) => {
   const [installing, setInstalling] = useState(false);
+  const [installed, setInstalled] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [command, setCommand] = useState<string | null>(null);
@@ -34,6 +35,13 @@ export const UpdateScreen: React.FC<Props> = ({ update, onDone, onInstall }) => 
       return;
     }
 
+    if (installed) {
+      if (key.return || key.escape) {
+        onDone('updated');
+      }
+      return;
+    }
+
     if (key.escape || input.toLowerCase() === 's') {
       onDone('skip');
       return;
@@ -41,6 +49,7 @@ export const UpdateScreen: React.FC<Props> = ({ update, onDone, onInstall }) => 
 
     if (key.return) {
       setInstalling(true);
+      setInstalled(false);
       setStatus(`Updating MiniChat to ${update.latestVersion}...`);
       setError(null);
       setCommand(null);
@@ -57,7 +66,7 @@ export const UpdateScreen: React.FC<Props> = ({ update, onDone, onInstall }) => 
             setLogOutput(result.output);
           }
           setInstalling(false);
-          onDone('updated');
+          setInstalled(true);
           return;
         }
 
@@ -103,6 +112,12 @@ export const UpdateScreen: React.FC<Props> = ({ update, onDone, onInstall }) => 
             <Text color="#B43A6C">Update failed.</Text>
             <Text color="#888">{error}</Text>
             <Text color="#888">You can also run brew upgrade --cask Icarus603/tap/minichat manually.</Text>
+          </>
+        )}
+        {installed && (
+          <>
+            <Text>{' '}</Text>
+            <Text color={theme.welcomeText}>Press Enter to continue.</Text>
           </>
         )}
       </Box>

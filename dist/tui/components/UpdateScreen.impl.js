@@ -5,6 +5,7 @@ import { WelcomePanel } from './WelcomePanel.js';
 import { theme } from '../../shared/theme.js';
 export const UpdateScreen = ({ update, onDone, onInstall }) => {
     const [installing, setInstalling] = useState(false);
+    const [installed, setInstalled] = useState(false);
     const [status, setStatus] = useState(null);
     const [error, setError] = useState(null);
     const [command, setCommand] = useState(null);
@@ -20,12 +21,19 @@ export const UpdateScreen = ({ update, onDone, onInstall }) => {
         if (installing) {
             return;
         }
+        if (installed) {
+            if (key.return || key.escape) {
+                onDone('updated');
+            }
+            return;
+        }
         if (key.escape || input.toLowerCase() === 's') {
             onDone('skip');
             return;
         }
         if (key.return) {
             setInstalling(true);
+            setInstalled(false);
             setStatus(`Updating MiniChat to ${update.latestVersion}...`);
             setError(null);
             setCommand(null);
@@ -42,7 +50,7 @@ export const UpdateScreen = ({ update, onDone, onInstall }) => {
                         setLogOutput(result.output);
                     }
                     setInstalling(false);
-                    onDone('updated');
+                    setInstalled(true);
                     return;
                 }
                 setError(result.output || 'Update failed.');
@@ -53,5 +61,5 @@ export const UpdateScreen = ({ update, onDone, onInstall }) => {
             });
         }
     });
-    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(WelcomePanel, {}), _jsxs(Box, { flexDirection: "column", paddingLeft: 1, children: [_jsx(Text, { color: theme.welcomeText, children: "A new version of MiniChat is available." }), _jsx(Text, { color: theme.welcomeBrand, children: `v${update.currentVersion} -> v${update.latestVersion}` }), _jsx(Text, { color: "#888", children: update.releaseUrl }), _jsx(Text, { children: ' ' }), status ? (_jsxs(Box, { flexDirection: "column", children: [_jsx(Text, { color: "#B43A6C", children: status }), command && (_jsx(Text, { color: "#888", children: `$ ${command}` })), logOutput && (_jsx(Box, { marginTop: 1, flexDirection: "column", children: logOutput.split('\n').map((line, index) => (_jsx(Text, { color: "#888", children: line }, `${index}-${line}`))) }))] })) : (_jsx(Text, { color: theme.welcomeText, children: "Press Enter to update now, or Esc to skip for now." })), error && (_jsxs(_Fragment, { children: [_jsx(Text, { children: ' ' }), _jsx(Text, { color: "#B43A6C", children: "Update failed." }), _jsx(Text, { color: "#888", children: error }), _jsx(Text, { color: "#888", children: "You can also run brew upgrade --cask Icarus603/tap/minichat manually." })] }))] })] }));
+    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(WelcomePanel, {}), _jsxs(Box, { flexDirection: "column", paddingLeft: 1, children: [_jsx(Text, { color: theme.welcomeText, children: "A new version of MiniChat is available." }), _jsx(Text, { color: theme.welcomeBrand, children: `v${update.currentVersion} -> v${update.latestVersion}` }), _jsx(Text, { color: "#888", children: update.releaseUrl }), _jsx(Text, { children: ' ' }), status ? (_jsxs(Box, { flexDirection: "column", children: [_jsx(Text, { color: "#B43A6C", children: status }), command && (_jsx(Text, { color: "#888", children: `$ ${command}` })), logOutput && (_jsx(Box, { marginTop: 1, flexDirection: "column", children: logOutput.split('\n').map((line, index) => (_jsx(Text, { color: "#888", children: line }, `${index}-${line}`))) }))] })) : (_jsx(Text, { color: theme.welcomeText, children: "Press Enter to update now, or Esc to skip for now." })), error && (_jsxs(_Fragment, { children: [_jsx(Text, { children: ' ' }), _jsx(Text, { color: "#B43A6C", children: "Update failed." }), _jsx(Text, { color: "#888", children: error }), _jsx(Text, { color: "#888", children: "You can also run brew upgrade --cask Icarus603/tap/minichat manually." })] })), installed && (_jsxs(_Fragment, { children: [_jsx(Text, { children: ' ' }), _jsx(Text, { color: theme.welcomeText, children: "Press Enter to continue." })] }))] })] }));
 };
