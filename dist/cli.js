@@ -7,10 +7,12 @@ import { App } from './components/App.js';
 import { DeviceCodeScreen } from './components/DeviceCodeScreen.js';
 import { ResumeModal } from './components/ResumeModal.js';
 import { SetupScreen } from './components/SetupScreen.js';
+import { UpdateScreen } from './components/UpdateScreen.js';
 import { resolvePostChatAction } from './core/appFlow.js';
 import { clearConfig, getConfig, saveConfig } from './core/configManager.js';
 import { clearMinichatCodexAuth, readCodexApiKey, runCodexDeviceLogin, runCodexLogin, runCodexLogout, saveMinichatCodexAuth } from './core/codexAuth.js';
 import { loadTranscript } from './core/transcriptManager.js';
+import { checkForUpdate, installLatestUpdate } from './core/updater.js';
 const enterAlternateScreen = () => {
     if (!process.stdout.isTTY)
         return;
@@ -151,6 +153,27 @@ const runResumePicker = async () => {
     process.stdout.write('\x1Bc');
     return selectedId;
 };
+const runUpdatePrompt = async () => {
+    if (!process.stdout.isTTY) {
+        return 'skip';
+    }
+    const update = await checkForUpdate();
+    if (!update) {
+        return 'skip';
+    }
+    enterAlternateScreen();
+    const action = await new Promise((resolve) => {
+        const { unmount, cleanup } = render(_jsx(UpdateScreen, { update: update, onInstall: installLatestUpdate, onDone: (nextAction) => {
+                unmount();
+                cleanup();
+                resolve(nextAction);
+            } }));
+    }).finally(() => {
+        exitAlternateScreen();
+    });
+    process.stdout.write('\x1Bc');
+    return action;
+};
 const clearLoginState = async () => {
     clearConfig();
     clearMinichatCodexAuth();
@@ -198,6 +221,11 @@ const runChatApp = async (sessionId, initialTranscript = loadTranscript(sessionI
         default: false,
     })
         .parseSync();
+    const updateAction = await runUpdatePrompt();
+    if (updateAction === 'updated') {
+        process.stdout.write('MiniChat was updated. Please run `minichat` again.\n');
+        process.exit(0);
+    }
     // ── Page 1: Setup (only if no config saved) ───────────────────
     if (!getConfig()) {
         await runSetup();
