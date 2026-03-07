@@ -40,6 +40,10 @@ const API_MODEL_DESCRIPTIONS = {
     'o3-mini': 'Smaller reasoning model balancing cost and quality.',
     'o4-mini': 'Fast reasoning model optimized for speed and price.',
 };
+const DEEPSEEK_MODELS = [
+    { id: 'deepseek-chat', description: 'General chat mode on DeepSeek-V3.2.' },
+    { id: 'deepseek-reasoner', description: 'Reasoning mode on DeepSeek-V3.2.' },
+];
 function isLikelyApiChatModel(id) {
     if (!id.startsWith('gpt-') && !id.startsWith('o')) {
         return false;
@@ -89,6 +93,9 @@ export function getReasoningEffortOptions(config, modelId) {
     if (!config.apiKey) {
         return CODEX_REASONING_EFFORTS[id] ?? [];
     }
+    if (config.provider === 'deepseek') {
+        return [];
+    }
     return API_REASONING_EFFORTS[id] ?? [];
 }
 function withCurrentModel(options, currentModel) {
@@ -103,6 +110,9 @@ function withCurrentModel(options, currentModel) {
 export async function listAvailableModels(config) {
     if (!config.apiKey) {
         return getChatGPTManagedModels(config.model);
+    }
+    if (config.provider === 'deepseek') {
+        return withCurrentModel(DEEPSEEK_MODELS, config.model);
     }
     if (config.provider === 'openrouter') {
         const response = await fetch('https://openrouter.ai/api/v1/models');

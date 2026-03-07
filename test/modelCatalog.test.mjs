@@ -35,6 +35,7 @@ test('OpenRouter model filtering removes free, suffixed, safeguard, and non-chat
 test('reasoning effort options mirror model family support', () => {
   const codexConfig = { model: 'gpt-5.4', authMode: 'chatgpt' };
   const openaiConfig = { model: 'gpt-5.2', apiKey: 'test-key', provider: 'openai', authMode: 'apiKey' };
+  const deepseekConfig = { model: 'deepseek-chat', apiKey: 'test-key', provider: 'deepseek', authMode: 'apiKey' };
 
   assert.equal(modelCatalog.supportsReasoningEffort(codexConfig, 'gpt-5.4'), true);
   assert.equal(modelCatalog.supportsReasoningEffort(codexConfig, 'gpt-5.3-codex'), true);
@@ -89,4 +90,22 @@ test('reasoning effort options mirror model family support', () => {
   ]);
 
   assert.deepEqual(modelCatalog.getReasoningEffortOptions(openaiConfig, 'gpt-5.4'), []);
+
+  assert.equal(modelCatalog.supportsReasoningEffort(deepseekConfig, 'deepseek-chat'), false);
+  assert.equal(modelCatalog.supportsReasoningEffort(deepseekConfig, 'deepseek-reasoner'), false);
+  assert.deepEqual(modelCatalog.getReasoningEffortOptions(deepseekConfig, 'deepseek-chat'), []);
+});
+
+test('DeepSeek managed models expose chat and reasoner choices', async () => {
+  const models = await modelCatalog.listAvailableModels({
+    model: 'deepseek-chat',
+    apiKey: 'test-key',
+    provider: 'deepseek',
+    authMode: 'apiKey',
+  });
+
+  assert.deepEqual(models.map(model => model.id), [
+    'deepseek-chat',
+    'deepseek-reasoner',
+  ]);
 });

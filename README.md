@@ -9,6 +9,7 @@ It supports:
 - `Sign in with Device Code`
 - `OpenAI API key`
 - `OpenRouter API key`
+- `DeepSeek API key`
 
 MiniChat keeps its own state in `~/.minichat/`, remembers your ongoing context through `SOUL.md`, and lets you resume past sessions from the terminal.
 
@@ -62,6 +63,7 @@ On first launch, MiniChat opens a setup screen. You can choose one of these logi
 2. `Sign in with Device Code`
 3. `Use OpenAI API key`
 4. `Use OpenRouter API key`
+5. `Use DeepSeek API key`
 
 If you use `Sign in with ChatGPT` or `Sign in with Device Code`, MiniChat delegates authentication to the official `codex` CLI.
 
@@ -114,3 +116,4 @@ Important files:
 - `OpenAI API key` now uses OpenAI’s newer `Responses API`
 - `ChatGPT` / `Device Code` auth still runs through `codex exec`
 - `OpenRouter` stays on the OpenAI-compatible `Chat Completions` path for now
+- `DeepSeek API key` uses DeepSeek's OpenAI-compatible `Chat Completions` API with `deepseek-chat` and `deepseek-reasoner`

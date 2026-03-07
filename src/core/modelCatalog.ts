@@ -53,6 +53,11 @@ const API_MODEL_DESCRIPTIONS: Record<string, string> = {
   'o4-mini': 'Fast reasoning model optimized for speed and price.',
 };
 
+const DEEPSEEK_MODELS: ModelOption[] = [
+  { id: 'deepseek-chat', description: 'General chat mode on DeepSeek-V3.2.' },
+  { id: 'deepseek-reasoner', description: 'Reasoning mode on DeepSeek-V3.2.' },
+];
+
 type OpenRouterModelResponse = {
   data?: Array<{
     id?: string;
@@ -123,6 +128,10 @@ export function getReasoningEffortOptions(config: Config, modelId: string): Reas
     return CODEX_REASONING_EFFORTS[id] ?? [];
   }
 
+  if (config.provider === 'deepseek') {
+    return [];
+  }
+
   return API_REASONING_EFFORTS[id] ?? [];
 }
 
@@ -140,6 +149,10 @@ function withCurrentModel(options: ModelOption[], currentModel: string): ModelOp
 export async function listAvailableModels(config: Config): Promise<ModelOption[]> {
   if (!config.apiKey) {
     return getChatGPTManagedModels(config.model);
+  }
+
+  if (config.provider === 'deepseek') {
+    return withCurrentModel(DEEPSEEK_MODELS, config.model);
   }
 
   if (config.provider === 'openrouter') {

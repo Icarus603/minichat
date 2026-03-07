@@ -35,6 +35,26 @@ test('config manager saves and clears provider-backed auth config', async () => 
   assert.equal(configManager.getConfig(), null);
 });
 
+test('config manager preserves deepseek provider config', async () => {
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-config-deepseek-'));
+  const configManager = await importFresh('dist/core/configManager.js', homeDir);
+
+  configManager.saveConfig({
+    provider: 'deepseek',
+    apiKey: 'test-key',
+    model: 'deepseek-reasoner',
+    authMode: 'apiKey',
+  });
+
+  assert.deepEqual(configManager.getConfig(), {
+    provider: 'deepseek',
+    apiKey: 'test-key',
+    model: 'deepseek-reasoner',
+    reasoningEffort: undefined,
+    authMode: 'apiKey',
+  });
+});
+
 test('codex auth helper clears imported MiniChat auth state', async () => {
   const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'minichat-auth-'));
   const configDir = path.join(homeDir, '.minichat');

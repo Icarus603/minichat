@@ -55,7 +55,12 @@ function extractTextFromResponse(response: Awaited<ReturnType<OpenAI['responses'
 function createClient(config: Config): OpenAI {
   return new OpenAI({
     apiKey: config.apiKey,
-    baseURL: config.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : undefined,
+    baseURL:
+      config.provider === 'openrouter'
+        ? 'https://openrouter.ai/api/v1'
+        : config.provider === 'deepseek'
+          ? 'https://api.deepseek.com'
+          : undefined,
     defaultHeaders: config.provider === 'openrouter'
       ? {
           'HTTP-Referer': 'https://github.com/Icarus603/minichat',
@@ -81,10 +86,9 @@ export async function runBackgroundPrompt(prompt: string, config: Config, signal
   }
 
   const client = createClient(config);
-  if (config.provider === 'openrouter') {
+  if (config.provider === 'openrouter' || config.provider === 'deepseek') {
     const response = await client.chat.completions.create({
       model: config.model,
-      reasoning_effort: config.reasoningEffort,
       messages: [
         {
           role: 'system',
@@ -129,10 +133,9 @@ export async function chat(messages: ChatMessage[], config: Config, signal?: Abo
 
   const client = createClient(config);
 
-  if (config.provider === 'openrouter') {
+  if (config.provider === 'openrouter' || config.provider === 'deepseek') {
     const response = await client.chat.completions.create({
       model: config.model,
-      reasoning_effort: config.reasoningEffort,
       messages: [
         ...systemMessages,
         ...messages

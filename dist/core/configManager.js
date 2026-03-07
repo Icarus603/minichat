@@ -6,7 +6,9 @@ export function getConfig() {
     try {
         if (fs.existsSync(configFile)) {
             const parsed = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-            const provider = parsed.provider === 'openrouter' ? 'openrouter' : 'openai';
+            const provider = parsed.provider === 'openrouter' || parsed.provider === 'deepseek'
+                ? parsed.provider
+                : 'openai';
             if (typeof parsed.model === 'string' && (typeof parsed.apiKey === 'string' || parsed.authMode)) {
                 return {
                     provider,

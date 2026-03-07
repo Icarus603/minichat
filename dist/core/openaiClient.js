@@ -40,7 +40,11 @@ function extractTextFromResponse(response) {
 function createClient(config) {
     return new OpenAI({
         apiKey: config.apiKey,
-        baseURL: config.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : undefined,
+        baseURL: config.provider === 'openrouter'
+            ? 'https://openrouter.ai/api/v1'
+            : config.provider === 'deepseek'
+                ? 'https://api.deepseek.com'
+                : undefined,
         defaultHeaders: config.provider === 'openrouter'
             ? {
                 'HTTP-Referer': 'https://github.com/Icarus603/minichat',
@@ -57,10 +61,9 @@ export async function runBackgroundPrompt(prompt, config, signal) {
         return await chatWithCodexAuth([{ role: 'user', content: prompt }], config.model, config.reasoningEffort, 'You are doing an internal MiniChat background analysis task. Reply only with the requested output.', signal);
     }
     const client = createClient(config);
-    if (config.provider === 'openrouter') {
+    if (config.provider === 'openrouter' || config.provider === 'deepseek') {
         const response = await client.chat.completions.create({
             model: config.model,
-            reasoning_effort: config.reasoningEffort,
             messages: [
                 {
                     role: 'system',
@@ -96,10 +99,9 @@ export async function chat(messages, config, signal) {
         return await chatWithCodexAuth(messages, config.model, config.reasoningEffort, system, signal);
     }
     const client = createClient(config);
-    if (config.provider === 'openrouter') {
+    if (config.provider === 'openrouter' || config.provider === 'deepseek') {
         const response = await client.chat.completions.create({
             model: config.model,
-            reasoning_effort: config.reasoningEffort,
             messages: [
                 ...systemMessages,
                 ...messages

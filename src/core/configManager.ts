@@ -5,7 +5,7 @@ export const configDir = path.join(process.env['HOME']!, '.minichat');
 const configFile = path.join(configDir, 'config.json');
 
 export interface Config {
-  provider?: 'openai' | 'openrouter';
+  provider?: 'openai' | 'openrouter' | 'deepseek';
   apiKey?: string;
   model: string;
   reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -16,7 +16,10 @@ export function getConfig(): Config | null {
   try {
     if (fs.existsSync(configFile)) {
       const parsed = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as Partial<Config> & { provider?: string };
-      const provider = parsed.provider === 'openrouter' ? 'openrouter' : 'openai';
+      const provider =
+        parsed.provider === 'openrouter' || parsed.provider === 'deepseek'
+          ? parsed.provider
+          : 'openai';
 
       if (typeof parsed.model === 'string' && (typeof parsed.apiKey === 'string' || parsed.authMode)) {
         return {

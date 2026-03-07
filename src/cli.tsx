@@ -42,6 +42,15 @@ const saveOpenRouterConfig = (apiKey: string) => {
   });
 };
 
+const saveDeepSeekConfig = (apiKey: string, model: 'deepseek-chat' | 'deepseek-reasoner') => {
+  saveConfig({
+    provider: 'deepseek',
+    apiKey,
+    model,
+    authMode: 'apiKey',
+  });
+};
+
 const saveChatGPTConfig = (method: 'chatgpt' | 'device') => {
   saveConfig({
     provider: 'openai',
@@ -77,6 +86,11 @@ const runSetup = async () => {
 
     if (action.type === 'openrouterApiKey') {
       saveOpenRouterConfig(action.apiKey);
+      break;
+    }
+
+    if (action.type === 'deepseekApiKey') {
+      saveDeepSeekConfig(action.apiKey, action.model);
       break;
     }
 
