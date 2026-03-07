@@ -14,9 +14,9 @@ MiniChat keeps its own state in `~/.minichat/`, remembers your ongoing context t
 
 ## Demo
 
-<video src="./assets/demo.mov" controls muted playsinline></video>
+[![MiniChat demo](./assets/demo.gif)](./assets/demo.mov)
 
-If your Markdown viewer does not render the embedded video, open [`assets/demo.mov`](./assets/demo.mov) directly.
+Click the preview to open the full demo video: [`assets/demo.mov`](./assets/demo.mov).
 
 ## Platform
 
