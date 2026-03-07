@@ -111,6 +111,7 @@ export async function checkForUpdate() {
 export async function installLatestUpdate(onProgress) {
     const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK], onProgress);
     if (upgrade.ok) {
+        await runBrew(['cleanup', '--cask', BREW_CASK]);
         return upgrade;
     }
     if (upgrade.output.includes('latest version is already installed')) {
@@ -121,6 +122,7 @@ export async function installLatestUpdate(onProgress) {
     }
     const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK], onProgress);
     if (reinstall.ok) {
+        await runBrew(['cleanup', '--cask', BREW_CASK]);
         return reinstall;
     }
     return {

@@ -159,6 +159,7 @@ export async function installLatestUpdate(
 ): Promise<UpdateInstallResult> {
   const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK], onProgress);
   if (upgrade.ok) {
+    await runBrew(['cleanup', '--cask', BREW_CASK]);
     return upgrade;
   }
 
@@ -171,6 +172,7 @@ export async function installLatestUpdate(
 
   const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK], onProgress);
   if (reinstall.ok) {
+    await runBrew(['cleanup', '--cask', BREW_CASK]);
     return reinstall;
   }
 
