@@ -22,5 +22,5 @@ export const ChatPanel = ({ transcript, loadingMessage, loadingBlinking = true }
                     .split('\n')
                     .map((line, lineIdx) => (_jsxs(Box, { flexDirection: "row", children: [lineIdx === 0
                             ? _jsx(Text, { color: "#B43A6C", children: '⏺ ' })
-                            : _jsx(Text, { children: '  ' }), _jsx(Box, { flexGrow: 1, children: _jsx(Text, { children: line }) })] }, lineIdx)))) }, idx));
+                            : _jsx(Text, { children: '  ' }), _jsx(Box, { flexGrow: 1, children: _jsx(Text, { children: line }) })] }, `${idx}-${lineIdx}`)))) }, idx));
         }), loadingMessage && (_jsxs(Box, { flexDirection: "row", children: [_jsx(StatusDot, { blinking: loadingBlinking }), loadingMessage === 'thinking…' ? (_jsx(Text, { color: "#888", children: loadingMessage })) : (_jsx(Text, { color: "#B43A6C", dimColor: true, children: loadingMessage }))] }))] }));

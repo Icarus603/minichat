@@ -51,7 +51,7 @@ export const ChatPanel: React.FC<{
             renderMarkdown(msg.content)
               .split('\n')
               .map((line, lineIdx) => (
-                <Box key={lineIdx} flexDirection="row">
+                <Box key={`${idx}-${lineIdx}`} flexDirection="row">
                   {lineIdx === 0
                     ? <Text color="#B43A6C">{'⏺ '}</Text>
                     : <Text>{'  '}</Text>
