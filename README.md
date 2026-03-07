@@ -26,10 +26,10 @@ MiniChat currently supports **macOS only**.
 
 ### Homebrew cask
 
-Once the cask is published, install with:
+Install with:
 
 ```bash
-brew install --cask minichat
+brew install --cask Icarus603/tap/minichat
 ```
 
 Then start MiniChat from any directory:
