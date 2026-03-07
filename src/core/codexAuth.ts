@@ -7,8 +7,16 @@ import type { ChatMessage } from './chatManager.js';
 
 const codexAuthFile = path.join(process.env['HOME']!, '.codex', 'auth.json');
 const minichatAuthFile = path.join(configDir, 'auth.json');
+const FILTERED_LOGIN_LINES = [
+  'On a remote or headless machine? Use `codex login --device-auth` instead.',
+];
+const ANSI_ESCAPE_PATTERN = /\x1B\[[0-9;?]*[ -/]*[@-~]/g;
 
 type LoginMethod = 'chatgpt' | 'device';
+type DeviceLoginUpdate = {
+  verificationUri?: string;
+  userCode?: string;
+};
 
 interface CodexAuthTokens {
   access_token: string;
@@ -90,13 +98,139 @@ export async function runCodexLogin(method: LoginMethod): Promise<number> {
   const args = method === 'device' ? ['login', '--device-auth'] : ['login'];
 
   return await new Promise<number>((resolve, reject) => {
+    const filterBrowserLoginOutput = method === 'chatgpt';
     const child = spawn('codex', args, {
-      stdio: 'inherit',
+      stdio: filterBrowserLoginOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
       env: process.env,
     });
 
+    if (filterBrowserLoginOutput) {
+      let stderr = '';
+      let stdoutBuffer = '';
+      let stderrBuffer = '';
+
+      const flushFilteredLines = (chunk: string, target: NodeJS.WriteStream, isStderr: boolean): string => {
+        const buffer = (isStderr ? stderrBuffer : stdoutBuffer) + chunk;
+        const lines = buffer.split(/\r?\n/);
+        const remainder = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (FILTERED_LOGIN_LINES.includes(line.trim())) {
+            continue;
+          }
+
+          target.write(line + '\n');
+        }
+
+        return remainder;
+      };
+
+      child.stdout?.setEncoding('utf8');
+      child.stdout?.on('data', (chunk: string) => {
+        stdoutBuffer = flushFilteredLines(chunk, process.stdout, false);
+      });
+
+      child.stderr?.setEncoding('utf8');
+      child.stderr?.on('data', (chunk: string) => {
+        stderr += chunk;
+        stderrBuffer = flushFilteredLines(chunk, process.stderr, true);
+      });
+
+      child.once('exit', (code) => {
+        if (stdoutBuffer.trim() && !FILTERED_LOGIN_LINES.includes(stdoutBuffer.trim())) {
+          process.stdout.write(stdoutBuffer);
+        }
+
+        if (stderrBuffer.trim() && !FILTERED_LOGIN_LINES.includes(stderrBuffer.trim())) {
+          process.stderr.write(stderrBuffer);
+        }
+
+        if ((code ?? 1) !== 0 && stderr.trim()) {
+          reject(new Error(stderr.trim()));
+          return;
+        }
+
+        resolve(code ?? 1);
+      });
+
+      child.once('error', reject);
+      return;
+    }
+
     child.once('error', reject);
     child.once('exit', (code) => resolve(code ?? 1));
+  });
+}
+
+export async function runCodexDeviceLogin(
+  onUpdate: (update: DeviceLoginUpdate) => void,
+): Promise<number> {
+  return await new Promise<number>((resolve, reject) => {
+    const child = spawn('codex', ['login', '--device-auth'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: process.env,
+    });
+
+    let stderr = '';
+    let stdoutBuffer = '';
+    let stderrBuffer = '';
+
+    const stripAnsi = (value: string) => value.replace(ANSI_ESCAPE_PATTERN, '');
+
+    const flushLines = (chunk: string, isStderr: boolean): string => {
+      const buffer = (isStderr ? stderrBuffer : stdoutBuffer) + chunk;
+      const lines = buffer.split(/\r?\n/);
+      const remainder = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = stripAnsi(line).trim();
+
+        if (trimmed.startsWith('http')) {
+          onUpdate({ verificationUri: trimmed });
+          continue;
+        }
+
+        if (/^[A-Z0-9]{4,}-[A-Z0-9-]+$/.test(trimmed)) {
+          onUpdate({ userCode: trimmed });
+          continue;
+        }
+
+        if (isStderr) {
+          stderr += line + '\n';
+        }
+      }
+
+      return remainder;
+    };
+
+    child.stdout?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk: string) => {
+      stdoutBuffer = flushLines(chunk, false);
+    });
+
+    child.stderr?.setEncoding('utf8');
+    child.stderr?.on('data', (chunk: string) => {
+      stderrBuffer = flushLines(chunk, true);
+    });
+
+    child.once('error', reject);
+    child.once('close', (code) => {
+      const finalStdout = stripAnsi(stdoutBuffer).trim();
+      const finalStderr = stripAnsi(stderrBuffer).trim();
+
+      if (finalStdout.startsWith('http')) {
+        onUpdate({ verificationUri: finalStdout });
+      } else if (/^[A-Z0-9]{4,}-[A-Z0-9-]+$/.test(finalStdout)) {
+        onUpdate({ userCode: finalStdout });
+      }
+
+      if (code !== 0) {
+        reject(new Error(finalStderr || stderr.trim() || `codex login --device-auth failed with exit code ${code}`));
+        return;
+      }
+
+      resolve(code ?? 0);
+    });
   });
 }
 

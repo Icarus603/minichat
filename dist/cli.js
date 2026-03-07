@@ -7,9 +7,10 @@ import { render } from 'ink';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { App } from './components/App.js';
+import { DeviceCodeScreen } from './components/DeviceCodeScreen.js';
 import { SetupScreen } from './components/SetupScreen.js';
 import { getConfig, saveConfig } from './core/configManager.js';
-import { readCodexApiKey, runCodexLogin, saveMinichatCodexAuth } from './core/codexAuth.js';
+import { readCodexApiKey, runCodexDeviceLogin, runCodexLogin, saveMinichatCodexAuth } from './core/codexAuth.js';
 const require = createRequire(import.meta.url);
 const loadInkInstances = async () => {
     const inkEntry = require.resolve('ink');
@@ -43,24 +44,74 @@ const saveChatGPTConfig = (method) => {
 };
 const runSetup = async () => {
     while (!getConfig()) {
+        enterAlternateScreen();
         const action = await new Promise((resolve) => {
-            const { unmount } = render(_jsx(SetupScreen, { onDone: (nextAction) => {
+            const { unmount, cleanup } = render(_jsx(SetupScreen, { onDone: (nextAction) => {
                     unmount();
+                    cleanup();
                     resolve(nextAction);
                 } }));
+        }).finally(() => {
+            exitAlternateScreen();
         });
         process.stdout.write('\x1Bc');
         if (action.type === 'apiKey') {
             saveOpenAIConfig(action.apiKey);
             break;
         }
+        if (action.type === 'device') {
+            enterAlternateScreen();
+            let verificationUri = 'Requesting device code...';
+            let userCode = '...';
+            const screen = render(_jsx(DeviceCodeScreen, { verificationUri: verificationUri, userCode: userCode }));
+            let exitCode = 1;
+            try {
+                exitCode = await runCodexDeviceLogin((update) => {
+                    if (update.verificationUri) {
+                        verificationUri = update.verificationUri;
+                    }
+                    if (update.userCode) {
+                        userCode = update.userCode;
+                    }
+                    screen.rerender(_jsx(DeviceCodeScreen, { verificationUri: verificationUri, userCode: userCode }));
+                });
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                process.stderr.write(`Failed to launch Codex device login: ${message}\n`);
+            }
+            finally {
+                screen.unmount();
+                screen.cleanup();
+                exitAlternateScreen();
+            }
+            process.stdout.write('\x1Bc');
+            if (exitCode !== 0) {
+                continue;
+            }
+            const apiKey = readCodexApiKey();
+            if (apiKey) {
+                saveOpenAIConfig(apiKey);
+                break;
+            }
+            if (!saveMinichatCodexAuth(action.type)) {
+                process.stderr.write('Codex login completed, but MiniChat could not import auth tokens from ~/.codex/auth.json\n');
+                continue;
+            }
+            saveChatGPTConfig(action.type);
+            break;
+        }
         let exitCode = 1;
         try {
+            enterAlternateScreen();
             exitCode = await runCodexLogin(action.type);
         }
         catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             process.stderr.write(`Failed to launch Codex login: ${message}\n`);
+        }
+        finally {
+            exitAlternateScreen();
         }
         process.stdout.write('\x1Bc');
         if (exitCode !== 0) {
@@ -108,10 +159,17 @@ const runSetup = async () => {
         previousRows = nextRows;
         if (!expanded)
             return;
-        if (instance)
+        if (instance) {
+            instance.throttledOnRender?.cancel?.();
+            instance.throttledLog?.cancel?.();
             instance.lastOutput = '';
+            instance.lastOutputToRender = '';
+            instance.lastOutputHeight = 0;
+            instance.fullStaticOutput = '';
+        }
+        exitAlternateScreen();
+        enterAlternateScreen();
         app.clear();
-        process.stdout.write('\x1B[2J\x1B[H');
     };
     process.stdout.prependListener('resize', handleResize);
     app.waitUntilExit().finally(() => {
