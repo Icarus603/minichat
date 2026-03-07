@@ -8,9 +8,12 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { App } from './components/App.js';
 import { DeviceCodeScreen } from './components/DeviceCodeScreen.js';
+import { ResumeModal } from './components/ResumeModal.js';
 import { SetupScreen, type SetupAction } from './components/SetupScreen.js';
+import { resolvePostChatAction } from './core/appFlow.js';
 import { clearConfig, getConfig, saveConfig } from './core/configManager.js';
 import { clearMinichatCodexAuth, readCodexApiKey, runCodexDeviceLogin, runCodexLogin, runCodexLogout, saveMinichatCodexAuth } from './core/codexAuth.js';
+import { loadTranscript } from './core/transcriptManager.js';
 
 const require = createRequire(import.meta.url);
 
@@ -193,13 +196,35 @@ const runSetup = async () => {
   }
 };
 
+const createSessionId = () => new Date().toISOString().replace(/[:.]/g, '-');
+
+const runResumePicker = async (): Promise<string | null> => {
+  enterAlternateScreen();
+  const selectedId = await new Promise<string | null>((resolve) => {
+    const { unmount, cleanup } = render(
+      <ResumeModal
+        onSelect={(transcriptId) => {
+          unmount();
+          cleanup();
+          resolve(transcriptId);
+        }}
+      />
+    );
+  }).finally(() => {
+    exitAlternateScreen();
+  });
+
+  process.stdout.write('\x1Bc');
+  return selectedId;
+};
+
 const clearLoginState = async () => {
   clearConfig();
   clearMinichatCodexAuth();
   await runCodexLogout();
 };
 
-const runChatApp = async (resumeMode: boolean) => {
+const runChatApp = async (sessionId: string, initialTranscript = loadTranscript(sessionId)) => {
   enterAlternateScreen();
   let resolveAuthAction: ((action: 'login' | 'logout') => void) | null = null;
   const authActionPromise = new Promise<'login' | 'logout'>((resolve) => {
@@ -207,7 +232,8 @@ const runChatApp = async (resumeMode: boolean) => {
   });
   const app = render(
     <App
-      resumeMode={resumeMode}
+      sessionId={sessionId}
+      initialTranscript={initialTranscript}
       onAuthAction={(action) => {
         resolveAuthAction?.(action);
       }}
@@ -271,18 +297,22 @@ const runChatApp = async (resumeMode: boolean) => {
     process.stdout.write('\x1Bc');
   }
 
-  const resumeMode = Boolean(argv.resume);
   while (getConfig()) {
-    const result = await runChatApp(resumeMode);
+    const sessionId = argv.resume ? (await runResumePicker()) ?? createSessionId() : createSessionId();
+    const initialTranscript = argv.resume && sessionId ? loadTranscript(sessionId) : [];
+    const result = await runChatApp(sessionId, initialTranscript);
+    argv.resume = false;
 
-    if (result === 'exit') {
+    const nextAction = resolvePostChatAction(result);
+
+    if (nextAction === 'exit') {
       break;
     }
 
     await clearLoginState();
     process.stdout.write('\x1Bc');
 
-    if (result === 'logout') {
+    if (nextAction === 'stop') {
       break;
     }
 

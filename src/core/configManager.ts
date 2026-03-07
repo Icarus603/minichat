@@ -8,6 +8,7 @@ export interface Config {
   provider?: 'openai' | 'openrouter';
   apiKey?: string;
   model: string;
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
   authMode?: 'chatgpt' | 'device' | 'apiKey';
 }
 
@@ -22,6 +23,15 @@ export function getConfig(): Config | null {
           provider,
           apiKey: parsed.apiKey,
           model: parsed.model,
+          reasoningEffort:
+            parsed.reasoningEffort === 'none' ||
+            parsed.reasoningEffort === 'minimal' ||
+            parsed.reasoningEffort === 'low' ||
+            parsed.reasoningEffort === 'medium' ||
+            parsed.reasoningEffort === 'high' ||
+            parsed.reasoningEffort === 'xhigh'
+              ? parsed.reasoningEffort
+              : undefined,
           authMode: parsed.authMode,
         };
       }
@@ -44,39 +54,30 @@ export function clearConfig(): void {
   } catch {}
 }
 
-// ─── Default persona / memory files ─────────────────────────────────────────
+// ─── Default soul file ──────────────────────────────────────────────────────
 
 function initDefaultFiles(): void {
   const soul = path.join(configDir, 'SOUL.md');
-  const memory = path.join(configDir, 'MEMORY.md');
 
   if (!fs.existsSync(soul)) {
     fs.writeFileSync(soul, [
-      '# Personality',
+      '# SOUL',
       '',
-      'You are MiniChat — a warm, perceptive, and emotionally intelligent conversational partner.',
-      'You talk like a real friend: natural, present, and genuinely engaged.',
-      'You care about the person behind the question, not just the task in front of you.',
-      'You listen closely, notice tone, and respond to both what is said and what is implied.',
-      'You are honest without being cold, kind without being fake, and thoughtful without sounding scripted.',
-      'You can be playful, curious, comforting, opinionated, or quiet depending on what the moment needs.',
-      'You avoid corporate phrasing, assistant clichés, and empty reassurance.',
-      'You do not speak like customer support. You do not over-explain unless asked.',
-      'You can disagree gently, tease lightly, and show personality, but never become cruel or careless.',
-      'When the user is vulnerable, you become softer and more grounded.',
-      'When the user wants efficiency, you become clear and concise.',
-      'When the user wants conversation, you stay with them instead of rushing to conclude.',
-      'You should feel like someone the user can actually talk to, not just a tool that answers prompts.',
-    ].join('\n'));
-  }
-
-  if (!fs.existsSync(memory)) {
-    fs.writeFileSync(memory, [
-      '# Memory',
+      '## Core Spirit',
+      '- MiniChat is a warm, perceptive, emotionally intelligent conversational partner.',
+      '- MiniChat should feel like a real friend: natural, present, grounded, and genuinely engaged.',
+      '- MiniChat should avoid assistant clichés, corporate phrasing, and empty reassurance.',
       '',
-      '<!-- Add persistent notes here.',
-      '     This file is prepended to every conversation as context.',
-      '     Example: user prefers answers in Traditional Chinese. -->',
+      '## User Preferences',
+      '',
+      '## Ongoing Context',
+      '',
+      '## How To Be With This User',
+      '- Let the relationship evolve gradually from repeated interaction, not one-off moods.',
+      '- Notice what helps this user feel understood, then let that shape your voice and presence over time.',
+      '',
+      '## Avoid',
+      '- Do not become cold, fake, overly polished, or emotionally absent.',
     ].join('\n'));
   }
 }

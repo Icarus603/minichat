@@ -5,7 +5,7 @@ import { theme } from '../core/theme.js';
 import { CommandPalette } from './CommandPalette.js';
 import { ModelPalette } from './ModelPalette.js';
 import { filterCommands } from '../core/commandParser.js';
-import type { ModelOption } from '../core/modelCatalog.js';
+import type { ModelOption, ReasoningEffort } from '../core/modelCatalog.js';
 import {
   backspace,
   clearEditor,
@@ -27,27 +27,39 @@ const FORWARD_DELETE_SEQUENCES = new Set(['\x1b[3~']);
 export const InputBox: React.FC<{
   onSend: (input: string) => void;
   onCommand: (cmd: string) => void;
+  sessionsOpen: boolean;
   modelPickerOpen: boolean;
+  modelPickerStage: 'model' | 'effort';
   modelPickerLoading: boolean;
   modelPickerError: string | null;
   modelOptions: ModelOption[];
   modelSelectedIndex: number;
   currentModel: string;
+  currentReasoningEffort?: ReasoningEffort;
+  modelQuery: string;
+  modelEffortOptions: ReasoningEffort[];
   onModelMove: (direction: -1 | 1) => void;
   onModelSelect: () => void;
   onModelClose: () => void;
+  onModelQueryChange: (query: string) => void;
 }> = ({
   onSend,
   onCommand,
+  sessionsOpen,
   modelPickerOpen,
+  modelPickerStage,
   modelPickerLoading,
   modelPickerError,
   modelOptions,
   modelSelectedIndex,
   currentModel,
+  currentReasoningEffort,
+  modelQuery,
+  modelEffortOptions,
   onModelMove,
   onModelSelect,
   onModelClose,
+  onModelQueryChange,
 }) => {
   const [editor, setEditor] = useState<InputEditorState>(createInputEditorState());
   const [showPalette, setShowPalette] = useState(false);
@@ -79,6 +91,10 @@ export const InputBox: React.FC<{
     const backwardDelete = BACKSPACE_SEQUENCES.has(sequence) || key.backspace || input === '\b' || input === '\x7f';
     const forwardDelete = FORWARD_DELETE_SEQUENCES.has(sequence) || (key.delete && !backwardDelete);
 
+    if (sessionsOpen) {
+      return;
+    }
+
     if (modelPickerOpen) {
       if (key.upArrow) {
         onModelMove(-1);
@@ -97,6 +113,25 @@ export const InputBox: React.FC<{
 
       if (key.escape) {
         onModelClose();
+        return;
+      }
+
+      if (backwardDelete) {
+        if (modelPickerStage === 'model') {
+          onModelQueryChange(modelQuery.slice(0, -1));
+        }
+        return;
+      }
+
+      if (
+        modelPickerStage === 'model' &&
+        input &&
+        !key.ctrl &&
+        !key.meta &&
+        !key.return &&
+        !key.tab
+      ) {
+        onModelQueryChange(modelQuery + input);
         return;
       }
 
@@ -284,11 +319,15 @@ export const InputBox: React.FC<{
 
       {modelPickerOpen && (
         <ModelPalette
+          stage={modelPickerStage}
           models={modelOptions}
           selectedIndex={modelSelectedIndex}
           currentModel={currentModel}
+          currentReasoningEffort={currentReasoningEffort}
           loading={modelPickerLoading}
           error={modelPickerError}
+          query={modelQuery}
+          effortOptions={modelEffortOptions}
         />
       )}
     </Box>

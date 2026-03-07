@@ -8,9 +8,12 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { App } from './components/App.js';
 import { DeviceCodeScreen } from './components/DeviceCodeScreen.js';
+import { ResumeModal } from './components/ResumeModal.js';
 import { SetupScreen } from './components/SetupScreen.js';
+import { resolvePostChatAction } from './core/appFlow.js';
 import { clearConfig, getConfig, saveConfig } from './core/configManager.js';
 import { clearMinichatCodexAuth, readCodexApiKey, runCodexDeviceLogin, runCodexLogin, runCodexLogout, saveMinichatCodexAuth } from './core/codexAuth.js';
+import { loadTranscript } from './core/transcriptManager.js';
 const require = createRequire(import.meta.url);
 const loadInkInstances = async () => {
     const inkEntry = require.resolve('ink');
@@ -144,18 +147,33 @@ const runSetup = async () => {
         break;
     }
 };
+const createSessionId = () => new Date().toISOString().replace(/[:.]/g, '-');
+const runResumePicker = async () => {
+    enterAlternateScreen();
+    const selectedId = await new Promise((resolve) => {
+        const { unmount, cleanup } = render(_jsx(ResumeModal, { onSelect: (transcriptId) => {
+                unmount();
+                cleanup();
+                resolve(transcriptId);
+            } }));
+    }).finally(() => {
+        exitAlternateScreen();
+    });
+    process.stdout.write('\x1Bc');
+    return selectedId;
+};
 const clearLoginState = async () => {
     clearConfig();
     clearMinichatCodexAuth();
     await runCodexLogout();
 };
-const runChatApp = async (resumeMode) => {
+const runChatApp = async (sessionId, initialTranscript = loadTranscript(sessionId)) => {
     enterAlternateScreen();
     let resolveAuthAction = null;
     const authActionPromise = new Promise((resolve) => {
         resolveAuthAction = resolve;
     });
-    const app = render(_jsx(App, { resumeMode: resumeMode, onAuthAction: (action) => {
+    const app = render(_jsx(App, { sessionId: sessionId, initialTranscript: initialTranscript, onAuthAction: (action) => {
             resolveAuthAction?.(action);
         } }));
     const instances = await loadInkInstances();
@@ -206,15 +224,18 @@ const runChatApp = async (resumeMode) => {
         await runSetup();
         process.stdout.write('\x1Bc');
     }
-    const resumeMode = Boolean(argv.resume);
     while (getConfig()) {
-        const result = await runChatApp(resumeMode);
-        if (result === 'exit') {
+        const sessionId = argv.resume ? (await runResumePicker()) ?? createSessionId() : createSessionId();
+        const initialTranscript = argv.resume && sessionId ? loadTranscript(sessionId) : [];
+        const result = await runChatApp(sessionId, initialTranscript);
+        argv.resume = false;
+        const nextAction = resolvePostChatAction(result);
+        if (nextAction === 'exit') {
             break;
         }
         await clearLoginState();
         process.stdout.write('\x1Bc');
-        if (result === 'logout') {
+        if (nextAction === 'stop') {
             break;
         }
         await runSetup();

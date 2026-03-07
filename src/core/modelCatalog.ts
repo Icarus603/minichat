@@ -6,6 +6,26 @@ export type ModelOption = {
   description: string;
 };
 
+export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
+const CODEX_REASONING_EFFORTS: Record<string, ReasoningEffort[]> = {
+  'gpt-5.3-codex': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.4': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.2-codex': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.1-codex-max': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.2': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.1-codex-mini': ['medium', 'high'],
+};
+
+const API_REASONING_EFFORTS: Record<string, ReasoningEffort[]> = {
+  'gpt-5.2': ['none', 'low', 'medium', 'high', 'xhigh'],
+  'gpt-5.2-pro': ['medium', 'high', 'xhigh'],
+  'gpt-5-pro': ['high'],
+  'gpt-5.1': ['none', 'low', 'medium', 'high'],
+  'gpt-5.1-mini': ['low', 'medium', 'high'],
+  'gpt-5.1-nano': ['low', 'medium', 'high'],
+};
+
 // Mirrors the default visible picker models in the official Codex repo.
 const CODEX_CHATGPT_MODELS: ModelOption[] = [
   { id: 'gpt-5.3-codex', description: 'Latest frontier agentic coding model.' },
@@ -80,6 +100,32 @@ function isLikelyOpenRouterChatModel(id: string): boolean {
   return isLikelyApiChatModel(rawModelId);
 }
 
+export function filterOpenRouterModelIds(ids: string[]): string[] {
+  return ids.filter(isLikelyOpenRouterChatModel);
+}
+
+export function getChatGPTManagedModels(currentModel = ''): ModelOption[] {
+  return withCurrentModel(CODEX_CHATGPT_MODELS, currentModel);
+}
+
+function normalizeModelId(modelId: string): string {
+  return modelId.startsWith('openai/') ? modelId.slice('openai/'.length) : modelId;
+}
+
+export function supportsReasoningEffort(config: Config, modelId: string): boolean {
+  return getReasoningEffortOptions(config, modelId).length > 0;
+}
+
+export function getReasoningEffortOptions(config: Config, modelId: string): ReasoningEffort[] {
+  const id = normalizeModelId(modelId);
+
+  if (!config.apiKey) {
+    return CODEX_REASONING_EFFORTS[id] ?? [];
+  }
+
+  return API_REASONING_EFFORTS[id] ?? [];
+}
+
 function withCurrentModel(options: ModelOption[], currentModel: string): ModelOption[] {
   if (!currentModel || options.some(option => option.id === currentModel)) {
     return options;
@@ -93,7 +139,7 @@ function withCurrentModel(options: ModelOption[], currentModel: string): ModelOp
 
 export async function listAvailableModels(config: Config): Promise<ModelOption[]> {
   if (!config.apiKey) {
-    return withCurrentModel(CODEX_CHATGPT_MODELS, config.model);
+    return getChatGPTManagedModels(config.model);
   }
 
   if (config.provider === 'openrouter') {
@@ -104,8 +150,15 @@ export async function listAvailableModels(config: Config): Promise<ModelOption[]
     }
 
     const payload = await response.json() as OpenRouterModelResponse;
+    const allowedIds = new Set(
+      filterOpenRouterModelIds(
+        (payload.data ?? [])
+          .map(model => model.id)
+          .filter((id): id is string => typeof id === 'string')
+      )
+    );
     const options = (payload.data ?? [])
-      .filter(model => typeof model.id === 'string' && isLikelyOpenRouterChatModel(model.id))
+      .filter(model => typeof model.id === 'string' && allowedIds.has(model.id))
       .map(model => ({
         id: model.id!,
         description: model.description?.trim() || model.name?.trim() || 'Available via OpenRouter.',

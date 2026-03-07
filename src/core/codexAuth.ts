@@ -266,6 +266,10 @@ function buildCodexPrompt(messages: ChatMessage[], systemPrompt: string): string
 
   sections.push('Conversation so far:');
   for (const message of messages) {
+    if (message.role === 'status') {
+      continue;
+    }
+
     sections.push(`${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`);
   }
 
@@ -278,6 +282,7 @@ function buildCodexPrompt(messages: ChatMessage[], systemPrompt: string): string
 export async function chatWithCodexAuth(
   messages: ChatMessage[],
   model: string | undefined,
+  reasoningEffort: string | undefined,
   systemPrompt: string,
 ): Promise<string> {
   const prompt = buildCodexPrompt(messages, systemPrompt);
@@ -293,6 +298,10 @@ export async function chatWithCodexAuth(
 
   if (model) {
     args.push('--model', model);
+  }
+
+  if (reasoningEffort) {
+    args.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
   }
 
   args.push('-');

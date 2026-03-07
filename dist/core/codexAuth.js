@@ -197,13 +197,16 @@ function buildCodexPrompt(messages, systemPrompt) {
     }
     sections.push('Conversation so far:');
     for (const message of messages) {
+        if (message.role === 'status') {
+            continue;
+        }
         sections.push(`${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`);
     }
     sections.push('Reply as the assistant to the last user message only.');
     sections.push('Do not include role labels.');
     return sections.join('\n\n');
 }
-export async function chatWithCodexAuth(messages, model, systemPrompt) {
+export async function chatWithCodexAuth(messages, model, reasoningEffort, systemPrompt) {
     const prompt = buildCodexPrompt(messages, systemPrompt);
     const args = [
         'exec',
@@ -216,6 +219,9 @@ export async function chatWithCodexAuth(messages, model, systemPrompt) {
     ];
     if (model) {
         args.push('--model', model);
+    }
+    if (reasoningEffort) {
+        args.push('-c', `model_reasoning_effort="${reasoningEffort}"`);
     }
     args.push('-');
     return await new Promise((resolve, reject) => {

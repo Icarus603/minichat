@@ -9,7 +9,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "test": "bun run build && node --test test/*.test.mjs"
   },
   "author": "Icarus603 <github.com/Icarus603>",
   "license": "MIT",

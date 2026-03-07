@@ -1,7 +1,42 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { Box, Text } from 'ink';
+import { useState } from 'react';
+import { Box, Text, useInput } from 'ink';
 import { listTranscripts } from '../core/transcriptManager.js';
-export const ResumeModal = () => {
+export const ResumeModal = ({ onSelect }) => {
     const history = listTranscripts();
-    return (_jsxs(Box, { flexDirection: "column", borderStyle: "round", borderColor: "#666", padding: 1, margin: 2, children: [_jsx(Text, { bold: true, color: "#FFF", children: "Resume Conversation" }), _jsx(Text, { color: "#AAA", children: "(pick a transcript to restore)" }), history.length === 0 && _jsx(Text, { color: "#555", children: "No saved conversations." }), history.map((h) => (_jsxs(Text, { color: "#FFF", children: [h.name, "  ", _jsx(Text, { color: "#777", children: h.date })] }, h.id)))] }));
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    useInput((input, key) => {
+        if (key.escape) {
+            onSelect(null);
+            return;
+        }
+        if (history.length === 0) {
+            if (key.return) {
+                onSelect(null);
+            }
+            return;
+        }
+        if (key.upArrow) {
+            setSelectedIndex((index) => Math.max(0, index - 1));
+            return;
+        }
+        if (key.downArrow) {
+            setSelectedIndex((index) => Math.min(history.length - 1, index + 1));
+            return;
+        }
+        if (key.return) {
+            onSelect(history[selectedIndex]?.id ?? null);
+            return;
+        }
+        if (/^[1-9]$/.test(input)) {
+            const index = Number(input) - 1;
+            if (index < history.length) {
+                setSelectedIndex(index);
+            }
+        }
+    });
+    return (_jsxs(Box, { flexDirection: "column", borderStyle: "round", borderColor: "#666", padding: 1, margin: 2, children: [_jsx(Text, { bold: true, color: "#FFF", children: "Resume Conversation" }), _jsx(Text, { color: "#AAA", children: "Select a transcript to restore, or press Esc to cancel." }), history.length === 0 && (_jsx(Text, { color: "#555", children: "No saved conversations. Press Enter or Esc to continue." })), history.map((item, index) => {
+                const selected = index === selectedIndex;
+                return (_jsxs(Box, { flexDirection: "column", marginTop: 1, children: [_jsxs(Text, { color: selected ? '#B43A6C' : '#FFF', children: [`${selected ? '>' : ' '} ${index + 1}. ${item.name}`, _jsx(Text, { color: "#777", children: `  ${item.date}` })] }), _jsx(Text, { color: "#777", children: `   ${item.preview}` }), _jsx(Text, { color: "#555", children: `   ${item.messageCount} messages` })] }, item.id));
+            })] }));
 };

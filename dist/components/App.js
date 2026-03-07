@@ -1,47 +1,69 @@
-import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
 import { Box, useApp } from 'ink';
 import { WelcomePanel } from './WelcomePanel.js';
 import { ChatPanel } from './ChatPanel.js';
 import { InputBox } from './InputBox.js';
-import { ResumeModal } from './ResumeModal.js';
 import { getConfig } from '../core/configManager.js';
 import { saveConfig } from '../core/configManager.js';
 import { chat } from '../core/openaiClient.js';
-import { saveTranscript } from '../core/transcriptManager.js';
-import { listAvailableModels } from '../core/modelCatalog.js';
-const SESSION_ID = new Date().toISOString().replace(/[:.]/g, '-');
-export const App = ({ resumeMode, onAuthAction }) => {
+import { analyzeContextEvolution, applyContextEvolution } from '../core/contextEvolution.js';
+import { deleteTranscript, loadTranscript, renameTranscript, saveTranscript } from '../core/transcriptManager.js';
+import { getReasoningEffortOptions, listAvailableModels, supportsReasoningEffort, } from '../core/modelCatalog.js';
+import { SessionsModal } from './SessionsModal.js';
+const createSessionId = () => new Date().toISOString().replace(/[:.]/g, '-');
+export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
     const { exit } = useApp();
-    const [transcript, setTranscript] = useState([]);
+    const [currentSessionId, setCurrentSessionId] = useState(sessionId);
+    const [transcript, setTranscript] = useState(initialTranscript);
     const [loading, setLoading] = useState(false);
     const [modelPickerOpen, setModelPickerOpen] = useState(false);
+    const [modelPickerStage, setModelPickerStage] = useState('model');
     const [modelPickerLoading, setModelPickerLoading] = useState(false);
     const [modelPickerError, setModelPickerError] = useState(null);
     const [modelOptions, setModelOptions] = useState([]);
     const [modelSelectedIndex, setModelSelectedIndex] = useState(0);
+    const [modelQuery, setModelQuery] = useState('');
+    const [modelEffortOptions, setModelEffortOptions] = useState([]);
+    const [pendingModel, setPendingModel] = useState(null);
+    const [sessionsOpen, setSessionsOpen] = useState(false);
+    const [loadingState, setLoadingState] = useState(null);
+    const filteredModelOptions = modelOptions.filter(model => model.id.toLowerCase().includes(modelQuery.trim().toLowerCase()));
     const handleSend = async (input) => {
         const userMsg = { role: 'user', content: input };
         const updated = [...transcript, userMsg];
         setTranscript(updated);
+        saveTranscript(currentSessionId, updated);
         setLoading(true);
+        setLoadingState({ message: 'thinking…', blinking: true });
         try {
             const config = getConfig();
+            const planned = await analyzeContextEvolution(updated, config);
+            const statusMessages = [];
+            if (planned.soul.length > 0) {
+                const applied = applyContextEvolution(planned);
+                if (applied.soul.length > 0) {
+                    statusMessages.push({ role: 'status', content: 'SOUL updated' });
+                }
+            }
             const response = await chat(updated, config);
             const aiMsg = { role: 'ai', content: response };
-            const final = [...updated, aiMsg];
+            const final = [...updated, ...statusMessages, aiMsg];
             setTranscript(final);
-            saveTranscript(SESSION_ID, final);
+            saveTranscript(currentSessionId, final);
         }
         catch (err) {
             const errMsg = {
                 role: 'ai',
                 content: `Error: ${err instanceof Error ? err.message : String(err)}`,
             };
-            setTranscript([...updated, errMsg]);
+            const final = [...updated, errMsg];
+            setTranscript(final);
+            saveTranscript(currentSessionId, final);
         }
         finally {
             setLoading(false);
+            setLoadingState(null);
         }
     };
     const openModelPicker = async () => {
@@ -50,8 +72,12 @@ export const App = ({ resumeMode, onAuthAction }) => {
             return;
         }
         setModelPickerOpen(true);
+        setModelPickerStage('model');
         setModelPickerLoading(true);
         setModelPickerError(null);
+        setModelQuery('');
+        setModelEffortOptions([]);
+        setPendingModel(null);
         try {
             const models = await listAvailableModels(config);
             setModelOptions(models);
@@ -72,12 +98,24 @@ export const App = ({ resumeMode, onAuthAction }) => {
             void openModelPicker();
             return;
         }
+        if (cmd === '/new') {
+            const nextSessionId = createSessionId();
+            setCurrentSessionId(nextSessionId);
+            setTranscript([]);
+            saveTranscript(nextSessionId, []);
+            return;
+        }
+        if (cmd === '/sessions') {
+            setSessionsOpen(true);
+            return;
+        }
         if (cmd === '/login' || cmd === '/logout') {
             onAuthAction(cmd === '/login' ? 'login' : 'logout');
             return;
         }
         if (cmd === '/clear') {
             setTranscript([]);
+            saveTranscript(currentSessionId, []);
         }
         else if (cmd === '/quit' || cmd === '/exit') {
             exit();
@@ -85,35 +123,112 @@ export const App = ({ resumeMode, onAuthAction }) => {
     };
     const handleModelMove = (direction) => {
         setModelSelectedIndex(index => {
-            if (modelOptions.length === 0) {
+            const length = modelPickerStage === 'effort' ? modelEffortOptions.length : filteredModelOptions.length;
+            if (length === 0) {
                 return 0;
             }
-            return Math.max(0, Math.min(modelOptions.length - 1, index + direction));
+            return Math.max(0, Math.min(length - 1, index + direction));
         });
     };
     const handleModelClose = () => {
+        if (modelPickerStage === 'effort') {
+            const config = getConfig();
+            const currentIndex = config
+                ? filteredModelOptions.findIndex(model => model.id === (pendingModel ?? config.model))
+                : -1;
+            setModelPickerStage('model');
+            setModelSelectedIndex(currentIndex >= 0 ? currentIndex : 0);
+            return;
+        }
+        closeModelPicker();
+    };
+    const closeModelPicker = () => {
         setModelPickerOpen(false);
+        setModelPickerStage('model');
         setModelPickerLoading(false);
         setModelPickerError(null);
         setModelOptions([]);
         setModelSelectedIndex(0);
+        setModelQuery('');
+        setModelEffortOptions([]);
+        setPendingModel(null);
     };
     const handleModelSelect = () => {
         const config = getConfig();
-        const selectedModel = modelOptions[modelSelectedIndex];
-        if (!config || !selectedModel) {
+        const selectedModelId = modelPickerStage === 'model'
+            ? filteredModelOptions[modelSelectedIndex]?.id
+            : pendingModel;
+        if (!config || !selectedModelId) {
             handleModelClose();
             return;
         }
+        if (modelPickerStage === 'model') {
+            if (supportsReasoningEffort(config, selectedModelId)) {
+                const effortOptions = getReasoningEffortOptions(config, selectedModelId);
+                setPendingModel(selectedModelId);
+                setModelEffortOptions(effortOptions);
+                setModelPickerStage('effort');
+                const currentEffort = config.reasoningEffort;
+                const currentEffortIndex = currentEffort ? effortOptions.findIndex(option => option === currentEffort) : -1;
+                setModelSelectedIndex(currentEffortIndex >= 0 ? currentEffortIndex : 0);
+                return;
+            }
+            saveConfig({
+                ...config,
+                model: selectedModelId,
+                reasoningEffort: undefined,
+            });
+            setTranscript(current => [
+                ...current,
+                { role: 'ai', content: `Switched model to ${selectedModelId}.` },
+            ]);
+            closeModelPicker();
+            return;
+        }
+        const selectedEffort = modelEffortOptions[modelSelectedIndex];
         saveConfig({
             ...config,
-            model: selectedModel.id,
+            model: selectedModelId,
+            reasoningEffort: selectedEffort,
         });
         setTranscript(current => [
             ...current,
-            { role: 'ai', content: `Switched model to ${selectedModel.id}.` },
+            {
+                role: 'ai',
+                content: selectedEffort
+                    ? `Switched model to ${selectedModelId} (${selectedEffort} effort).`
+                    : `Switched model to ${selectedModelId}.`,
+            },
         ]);
-        handleModelClose();
+        closeModelPicker();
     };
-    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(WelcomePanel, {}), resumeMode ? (_jsx(ResumeModal, {})) : (_jsxs(_Fragment, { children: [_jsx(ChatPanel, { transcript: transcript, loading: loading }), _jsx(InputBox, { onSend: handleSend, onCommand: handleCommand, modelPickerOpen: modelPickerOpen, modelPickerLoading: modelPickerLoading, modelPickerError: modelPickerError, modelOptions: modelOptions, modelSelectedIndex: modelSelectedIndex, currentModel: getConfig()?.model ?? '', onModelMove: handleModelMove, onModelSelect: handleModelSelect, onModelClose: handleModelClose })] }))] }));
+    const handleModelQueryChange = (query) => {
+        setModelQuery(query);
+        setModelSelectedIndex(0);
+    };
+    return (_jsxs(Box, { flexDirection: "column", children: [_jsx(WelcomePanel, {}), _jsx(ChatPanel, { transcript: transcript, loadingMessage: loading ? loadingState?.message ?? 'thinking…' : null, loadingBlinking: loading ? loadingState?.blinking ?? true : false }), _jsx(InputBox, { onSend: handleSend, onCommand: handleCommand, sessionsOpen: sessionsOpen, modelPickerOpen: modelPickerOpen, modelPickerStage: modelPickerStage, modelPickerLoading: modelPickerLoading, modelPickerError: modelPickerError, modelOptions: filteredModelOptions, modelSelectedIndex: modelSelectedIndex, currentModel: getConfig()?.model ?? '', currentReasoningEffort: getConfig()?.reasoningEffort, modelQuery: modelQuery, modelEffortOptions: modelEffortOptions, onModelMove: handleModelMove, onModelSelect: handleModelSelect, onModelClose: handleModelClose, onModelQueryChange: handleModelQueryChange }), sessionsOpen && (_jsx(SessionsModal, { currentSessionId: currentSessionId, onResume: (nextSessionId) => {
+                    setCurrentSessionId(nextSessionId);
+                    setTranscript(loadTranscript(nextSessionId));
+                    setSessionsOpen(false);
+                }, onRename: (transcriptId, nextName) => {
+                    const renamed = renameTranscript(transcriptId, nextName);
+                    if (!renamed) {
+                        return false;
+                    }
+                    if (transcriptId === currentSessionId) {
+                        setCurrentSessionId(renamed);
+                    }
+                    return true;
+                }, onDelete: (transcriptId) => {
+                    const deleted = deleteTranscript(transcriptId);
+                    if (!deleted) {
+                        return;
+                    }
+                    if (transcriptId === currentSessionId) {
+                        const nextSessionId = createSessionId();
+                        setCurrentSessionId(nextSessionId);
+                        setTranscript([]);
+                        saveTranscript(nextSessionId, []);
+                    }
+                }, onClose: () => setSessionsOpen(false) }))] }));
 };

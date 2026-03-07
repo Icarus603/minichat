@@ -9,7 +9,7 @@ import { backspace, clearEditor, createInputEditorState, deleteForward, getRende
 const DOUBLE_ESCAPE_MS = 400;
 const BACKSPACE_SEQUENCES = new Set(['\b', '\x7f']);
 const FORWARD_DELETE_SEQUENCES = new Set(['\x1b[3~']);
-export const InputBox = ({ onSend, onCommand, modelPickerOpen, modelPickerLoading, modelPickerError, modelOptions, modelSelectedIndex, currentModel, onModelMove, onModelSelect, onModelClose, }) => {
+export const InputBox = ({ onSend, onCommand, sessionsOpen, modelPickerOpen, modelPickerStage, modelPickerLoading, modelPickerError, modelOptions, modelSelectedIndex, currentModel, currentReasoningEffort, modelQuery, modelEffortOptions, onModelMove, onModelSelect, onModelClose, onModelQueryChange, }) => {
     const [editor, setEditor] = useState(createInputEditorState());
     const [showPalette, setShowPalette] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -34,6 +34,9 @@ export const InputBox = ({ onSend, onCommand, modelPickerOpen, modelPickerLoadin
         const sequence = lastSequenceRef.current;
         const backwardDelete = BACKSPACE_SEQUENCES.has(sequence) || key.backspace || input === '\b' || input === '\x7f';
         const forwardDelete = FORWARD_DELETE_SEQUENCES.has(sequence) || (key.delete && !backwardDelete);
+        if (sessionsOpen) {
+            return;
+        }
         if (modelPickerOpen) {
             if (key.upArrow) {
                 onModelMove(-1);
@@ -49,6 +52,21 @@ export const InputBox = ({ onSend, onCommand, modelPickerOpen, modelPickerLoadin
             }
             if (key.escape) {
                 onModelClose();
+                return;
+            }
+            if (backwardDelete) {
+                if (modelPickerStage === 'model') {
+                    onModelQueryChange(modelQuery.slice(0, -1));
+                }
+                return;
+            }
+            if (modelPickerStage === 'model' &&
+                input &&
+                !key.ctrl &&
+                !key.meta &&
+                !key.return &&
+                !key.tab) {
+                onModelQueryChange(modelQuery + input);
                 return;
             }
             return;
@@ -171,5 +189,5 @@ export const InputBox = ({ onSend, onCommand, modelPickerOpen, modelPickerLoadin
     const { lines, cursorLineIndex, cursorColumn } = getRenderedLines(editor);
     return (_jsxs(Box, { flexDirection: "column", children: [_jsx(Box, { borderStyle: "single", borderLeft: false, borderRight: false, borderColor: "#444", paddingX: 1, flexDirection: "column", children: lines.map((line, idx) => (_jsxs(Box, { flexDirection: "row", children: [idx === 0
                             ? _jsx(Text, { color: "#888", children: '❯ ' })
-                            : _jsx(Text, { children: '  ' }), idx === cursorLineIndex ? (_jsxs(Text, { color: theme.input, children: [line.slice(0, cursorColumn), _jsx(Text, { backgroundColor: "#FFF", color: "#000", children: line[cursorColumn] ?? ' ' }), line.slice(cursorColumn + (cursorColumn < line.length ? 1 : 0))] })) : (_jsx(Text, { color: theme.input, children: line || ' ' }))] }, idx))) }), showPalette && (_jsx(CommandPalette, { query: paletteQuery, commands: commands, selectedIndex: selectedIndex })), modelPickerOpen && (_jsx(ModelPalette, { models: modelOptions, selectedIndex: modelSelectedIndex, currentModel: currentModel, loading: modelPickerLoading, error: modelPickerError }))] }));
+                            : _jsx(Text, { children: '  ' }), idx === cursorLineIndex ? (_jsxs(Text, { color: theme.input, children: [line.slice(0, cursorColumn), _jsx(Text, { backgroundColor: "#FFF", color: "#000", children: line[cursorColumn] ?? ' ' }), line.slice(cursorColumn + (cursorColumn < line.length ? 1 : 0))] })) : (_jsx(Text, { color: theme.input, children: line || ' ' }))] }, idx))) }), showPalette && (_jsx(CommandPalette, { query: paletteQuery, commands: commands, selectedIndex: selectedIndex })), modelPickerOpen && (_jsx(ModelPalette, { stage: modelPickerStage, models: modelOptions, selectedIndex: modelSelectedIndex, currentModel: currentModel, currentReasoningEffort: currentReasoningEffort, loading: modelPickerLoading, error: modelPickerError, query: modelQuery, effortOptions: modelEffortOptions }))] }));
 };
