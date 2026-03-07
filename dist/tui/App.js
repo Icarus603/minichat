@@ -12,7 +12,7 @@ import { useChatAppState } from './hooks/useChatAppState.js';
 export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
     const { exit } = useApp();
     const { stdout } = useStdout();
-    const { currentSessionId, transcript, loading, loadingState, sessionsOpen, modelPickerOpen, modelPickerStage, modelPickerLoading, modelPickerError, filteredModelOptions, modelSelectedIndex, modelQuery, modelEffortOptions, handleSend, handleInterrupt, handleCommand, handleModelMove, handleModelSelect, handleModelClose, handleModelQueryChange, handleSessionResume, handleSessionRename, handleSessionDelete, handleSessionsClose, } = useChatAppState({
+    const { currentSessionId, transcript, loading, loadingState, sessionsOpen, rewindOpen, rewindEntries, rewindSelectedIndex, modelPickerOpen, modelPickerStage, modelPickerLoading, modelPickerError, filteredModelOptions, modelSelectedIndex, modelQuery, modelEffortOptions, handleSend, handleInterrupt, handleCommand, handleModelMove, handleModelSelect, handleModelClose, handleModelQueryChange, handleSessionResume, handleSessionRename, handleSessionDelete, handleSessionsClose, handleRewindOpen, handleRewindClose, handleRewindMove, handleRewindSelect, } = useChatAppState({
         sessionId,
         initialTranscript,
         onAuthAction,
@@ -21,6 +21,9 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
     const currentConfig = readConfig();
     const uiState = {
         sessionsOpen,
+        rewindOpen,
+        rewindEntries,
+        rewindSelectedIndex,
         modelPickerOpen,
         modelPickerStage,
         modelPickerLoading,
@@ -33,6 +36,10 @@ export const App = ({ sessionId, initialTranscript = [], onAuthAction }) => {
         modelEffortOptions,
     };
     const uiActions = {
+        onRewindOpen: handleRewindOpen,
+        onRewindClose: handleRewindClose,
+        onRewindMove: handleRewindMove,
+        onRewindSelect: handleRewindSelect,
         onModelMove: handleModelMove,
         onModelSelect: handleModelSelect,
         onModelClose: handleModelClose,

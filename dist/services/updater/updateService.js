@@ -2,6 +2,29 @@ import { spawn } from 'node:child_process';
 import { APP_VERSION } from '../../shared/version.js';
 const LATEST_RELEASE_URL = 'https://api.github.com/repos/Icarus603/minichat/releases/latest';
 const BREW_CASK = 'Icarus603/tap/minichat';
+async function getInstalledCaskVersion() {
+    return await new Promise((resolve) => {
+        const child = spawn('brew', ['list', '--cask', '--versions', 'minichat'], {
+            cwd: process.cwd(),
+            env: process.env,
+            stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        let stdout = '';
+        child.stdout.setEncoding('utf8');
+        child.stdout.on('data', chunk => {
+            stdout += chunk;
+        });
+        child.once('error', () => resolve(null));
+        child.once('close', (code) => {
+            if (code !== 0) {
+                resolve(null);
+                return;
+            }
+            const match = stdout.trim().match(/^minichat\s+([^\s]+)$/m);
+            resolve(match?.[1] ? normalizeVersion(match[1]) : null);
+        });
+    });
+}
 function normalizeVersion(version) {
     return version.trim().replace(/^v/i, '');
 }
@@ -53,6 +76,7 @@ async function runBrew(args, onProgress) {
 }
 export async function checkForUpdate() {
     try {
+        const installedVersion = await getInstalledCaskVersion();
         const response = await fetch(LATEST_RELEASE_URL, {
             headers: {
                 'User-Agent': 'MiniChat',
@@ -66,6 +90,9 @@ export async function checkForUpdate() {
         const payload = await response.json();
         const latestVersion = typeof payload.tag_name === 'string' ? normalizeVersion(payload.tag_name) : '';
         if (!latestVersion) {
+            return null;
+        }
+        if (installedVersion && compareVersions(installedVersion, latestVersion) >= 0) {
             return null;
         }
         if (compareVersions(latestVersion, APP_VERSION) <= 0) {
@@ -85,6 +112,12 @@ export async function installLatestUpdate(onProgress) {
     const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK], onProgress);
     if (upgrade.ok) {
         return upgrade;
+    }
+    if (upgrade.output.includes('latest version is already installed')) {
+        return {
+            ok: true,
+            output: upgrade.output,
+        };
     }
     const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK], onProgress);
     if (reinstall.ok) {

@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { theme } from '../../shared/theme.js';
 import { CommandPalette } from './CommandPalette.js';
 import { ModelPalette } from './ModelPalette.js';
+import { RewindPalette } from './RewindPalette.js';
 import { useInputController } from '../input/useInputController.js';
 import { useUIActions } from '../contexts/UIActionsContext.js';
 import { useUIState } from '../contexts/UIStateContext.js';
@@ -21,6 +22,9 @@ export const InputBox: React.FC<{
 }) => {
   const {
     sessionsOpen,
+    rewindOpen,
+    rewindEntries,
+    rewindSelectedIndex,
     modelPickerOpen,
     modelPickerStage,
     modelPickerLoading,
@@ -34,6 +38,10 @@ export const InputBox: React.FC<{
   } = useUIState();
   const {
     onModelMove,
+    onRewindOpen,
+    onRewindClose,
+    onRewindMove,
+    onRewindSelect,
     onModelSelect,
     onModelClose,
     onModelQueryChange,
@@ -57,6 +65,7 @@ export const InputBox: React.FC<{
     onInterrupt,
     onCommand,
     sessionsOpen,
+    rewindOpen,
     modelPickerOpen,
     modelPickerStage,
     modelPickerLoading,
@@ -64,6 +73,10 @@ export const InputBox: React.FC<{
     modelSelectedIndex,
     modelQuery,
     modelEffortOptions,
+    onRewindOpen,
+    onRewindClose,
+    onRewindMove,
+    onRewindSelect,
     onModelMove,
     onModelSelect,
     onModelClose,
@@ -113,6 +126,13 @@ export const InputBox: React.FC<{
           query={paletteQuery}
           commands={commands}
           selectedIndex={selectedIndex}
+        />
+      )}
+
+      {rewindOpen && (
+        <RewindPalette
+          entries={rewindEntries}
+          selectedIndex={rewindSelectedIndex}
         />
       )}
 

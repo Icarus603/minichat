@@ -6,7 +6,7 @@ import { BRACKETED_PASTE_END, BRACKETED_PASTE_START, createPastePlaceholder, exp
 import { isBackwardDelete, isForwardDelete, isFreeformTypingInput, isPaletteTypingInput } from './keymap.js';
 import { useTerminalState } from '../contexts/TerminalContext.js';
 const DOUBLE_ESCAPE_MS = 400;
-export function useInputController({ onSend, loading, onInterrupt, onCommand, sessionsOpen, modelPickerOpen, modelPickerStage, modelPickerLoading, modelOptions, modelSelectedIndex, modelQuery, modelEffortOptions, onModelMove, onModelSelect, onModelClose, onModelQueryChange, }) {
+export function useInputController({ onSend, loading, onInterrupt, onCommand, sessionsOpen, rewindOpen, modelPickerOpen, modelPickerStage, modelPickerLoading, modelOptions, modelSelectedIndex, modelQuery, modelEffortOptions, onRewindOpen, onRewindClose, onRewindMove, onRewindSelect, onModelMove, onModelSelect, onModelClose, onModelQueryChange, }) {
     const [editor, setEditor] = useState(createInputEditorState());
     const [showPalette, setShowPalette] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -120,6 +120,17 @@ export function useInputController({ onSend, loading, onInterrupt, onCommand, se
         if (sessionsOpen) {
             return;
         }
+        if (rewindOpen) {
+            if (key.escape)
+                return void onRewindClose();
+            if (key.upArrow)
+                return void onRewindMove(-1);
+            if (key.downArrow)
+                return void onRewindMove(1);
+            if (key.return)
+                return void onRewindSelect();
+            return;
+        }
         if (modelPickerOpen) {
             if (key.upArrow)
                 return void onModelMove(-1);
@@ -199,7 +210,12 @@ export function useInputController({ onSend, loading, onInterrupt, onCommand, se
             const isDoubleEscape = now - lastEscapeAtRef.current <= DOUBLE_ESCAPE_MS;
             lastEscapeAtRef.current = now;
             if (isDoubleEscape) {
-                clearInput();
+                if (currentEditor.value.length === 0) {
+                    onRewindOpen();
+                }
+                else {
+                    clearInput();
+                }
                 lastEscapeAtRef.current = 0;
             }
             return;

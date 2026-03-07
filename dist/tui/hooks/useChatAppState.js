@@ -3,7 +3,7 @@ import { readConfig } from '../../services/storage/configStore.js';
 import { buildErrorTranscript, buildInterruptedTranscript, runChatTurn, } from '../../app/controller/chatController.js';
 import { executeCommand } from '../../app/controller/commandController.js';
 import { applyModelSelection, getModelEffortOptions, loadModelPickerState, shouldOpenEffortStage, } from '../../app/controller/modelController.js';
-import { createEmptySession, deleteSession, loadSession, persistSession, renameSession, replaceDeletedCurrentSession, } from '../../app/controller/sessionController.js';
+import { createEmptySession, deleteSession, listRewindEntries, loadSession, persistSession, renameSession, replaceDeletedCurrentSession, rewindTranscript, } from '../../app/controller/sessionController.js';
 export function useChatAppState({ sessionId, initialTranscript, onAuthAction, onExit, }) {
     const activeRequestRef = useRef(null);
     const [currentSessionId, setCurrentSessionId] = useState(sessionId);
@@ -19,7 +19,10 @@ export function useChatAppState({ sessionId, initialTranscript, onAuthAction, on
     const [modelEffortOptions, setModelEffortOptions] = useState([]);
     const [pendingModel, setPendingModel] = useState(null);
     const [sessionsOpen, setSessionsOpen] = useState(false);
+    const [rewindOpen, setRewindOpen] = useState(false);
+    const [rewindSelectedIndex, setRewindSelectedIndex] = useState(0);
     const [loadingState, setLoadingState] = useState(null);
+    const rewindEntries = listRewindEntries(transcript);
     const filteredModelOptions = modelOptions.filter((model) => model.id.toLowerCase().includes(modelQuery.trim().toLowerCase()));
     const isInterruptedError = (error) => {
         if (!(error instanceof Error))
@@ -38,6 +41,10 @@ export function useChatAppState({ sessionId, initialTranscript, onAuthAction, on
         setModelQuery('');
         setModelEffortOptions([]);
         setPendingModel(null);
+    };
+    const closeRewind = () => {
+        setRewindOpen(false);
+        setRewindSelectedIndex(0);
     };
     const handleSend = async (input) => {
         if (loading)
@@ -205,12 +212,33 @@ export function useChatAppState({ sessionId, initialTranscript, onAuthAction, on
             setTranscript(nextSession.transcript);
         }
     };
+    const handleRewindOpen = () => {
+        if (loading || rewindEntries.length === 0) {
+            return;
+        }
+        setRewindOpen(true);
+        setRewindSelectedIndex(Math.max(0, rewindEntries.length - 1));
+    };
+    const handleRewindSelect = () => {
+        const selected = rewindEntries[rewindSelectedIndex];
+        if (!selected) {
+            closeRewind();
+            return;
+        }
+        const nextTranscript = rewindTranscript(transcript, selected.transcriptIndex);
+        setTranscript(nextTranscript);
+        persistSession(currentSessionId, nextTranscript);
+        closeRewind();
+    };
     return {
         currentSessionId,
         transcript,
         loading,
         loadingState,
         sessionsOpen,
+        rewindOpen,
+        rewindEntries,
+        rewindSelectedIndex,
         modelPickerOpen,
         modelPickerStage,
         modelPickerLoading,
@@ -233,5 +261,16 @@ export function useChatAppState({ sessionId, initialTranscript, onAuthAction, on
         handleSessionRename,
         handleSessionDelete,
         handleSessionsClose: () => setSessionsOpen(false),
+        handleRewindOpen,
+        handleRewindClose: closeRewind,
+        handleRewindMove: (direction) => {
+            setRewindSelectedIndex((index) => {
+                if (rewindEntries.length === 0) {
+                    return 0;
+                }
+                return Math.max(0, Math.min(rewindEntries.length - 1, index + direction));
+            });
+        },
+        handleRewindSelect,
     };
 }

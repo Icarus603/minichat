@@ -37,6 +37,7 @@ type UseInputControllerProps = {
   onInterrupt: () => void;
   onCommand: (cmd: string) => void;
   sessionsOpen: boolean;
+  rewindOpen: boolean;
   modelPickerOpen: boolean;
   modelPickerStage: 'model' | 'effort';
   modelPickerLoading: boolean;
@@ -44,6 +45,10 @@ type UseInputControllerProps = {
   modelSelectedIndex: number;
   modelQuery: string;
   modelEffortOptions: ReasoningEffort[];
+  onRewindOpen: () => void;
+  onRewindClose: () => void;
+  onRewindMove: (direction: -1 | 1) => void;
+  onRewindSelect: () => void;
   onModelMove: (direction: -1 | 1) => void;
   onModelSelect: () => void;
   onModelClose: () => void;
@@ -72,6 +77,7 @@ export function useInputController({
   onInterrupt,
   onCommand,
   sessionsOpen,
+  rewindOpen,
   modelPickerOpen,
   modelPickerStage,
   modelPickerLoading,
@@ -79,6 +85,10 @@ export function useInputController({
   modelSelectedIndex,
   modelQuery,
   modelEffortOptions,
+  onRewindOpen,
+  onRewindClose,
+  onRewindMove,
+  onRewindSelect,
   onModelMove,
   onModelSelect,
   onModelClose,
@@ -225,6 +235,14 @@ export function useInputController({
       return;
     }
 
+    if (rewindOpen) {
+      if (key.escape) return void onRewindClose();
+      if (key.upArrow) return void onRewindMove(-1);
+      if (key.downArrow) return void onRewindMove(1);
+      if (key.return) return void onRewindSelect();
+      return;
+    }
+
     if (modelPickerOpen) {
       if (key.upArrow) return void onModelMove(-1);
       if (key.downArrow) return void onModelMove(1);
@@ -306,7 +324,11 @@ export function useInputController({
       lastEscapeAtRef.current = now;
 
       if (isDoubleEscape) {
-        clearInput();
+        if (currentEditor.value.length === 0) {
+          onRewindOpen();
+        } else {
+          clearInput();
+        }
         lastEscapeAtRef.current = 0;
       }
       return;

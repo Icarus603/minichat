@@ -1,6 +1,10 @@
 import React, { createContext, useContext } from 'react';
 
 export type UIActionsValue = {
+  onRewindOpen: () => void;
+  onRewindClose: () => void;
+  onRewindMove: (direction: -1 | 1) => void;
+  onRewindSelect: () => void;
   onModelMove: (direction: -1 | 1) => void;
   onModelSelect: () => void;
   onModelClose: () => void;

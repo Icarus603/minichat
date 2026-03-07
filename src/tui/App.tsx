@@ -25,6 +25,9 @@ export const App: React.FC<{
     loading,
     loadingState,
     sessionsOpen,
+    rewindOpen,
+    rewindEntries,
+    rewindSelectedIndex,
     modelPickerOpen,
     modelPickerStage,
     modelPickerLoading,
@@ -44,6 +47,10 @@ export const App: React.FC<{
     handleSessionRename,
     handleSessionDelete,
     handleSessionsClose,
+    handleRewindOpen,
+    handleRewindClose,
+    handleRewindMove,
+    handleRewindSelect,
   } = useChatAppState({
     sessionId,
     initialTranscript,
@@ -55,6 +62,9 @@ export const App: React.FC<{
 
   const uiState = {
     sessionsOpen,
+    rewindOpen,
+    rewindEntries,
+    rewindSelectedIndex,
     modelPickerOpen,
     modelPickerStage,
     modelPickerLoading,
@@ -68,6 +78,10 @@ export const App: React.FC<{
   };
 
   const uiActions = {
+    onRewindOpen: handleRewindOpen,
+    onRewindClose: handleRewindClose,
+    onRewindMove: handleRewindMove,
+    onRewindSelect: handleRewindSelect,
     onModelMove: handleModelMove,
     onModelSelect: handleModelSelect,
     onModelClose: handleModelClose,

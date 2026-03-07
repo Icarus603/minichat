@@ -34,3 +34,23 @@ test('transcript manager saves, lists, renames, and deletes transcripts', async 
   assert.equal(deleted, true);
   assert.equal(manager.listTranscripts().length, 0);
 });
+
+test('rewind transcript removes the selected user turn and everything after it', async () => {
+  const sessionController = await import('../dist/app/controller/sessionController.js');
+  const transcript = [
+    { role: 'user', content: 'first' },
+    { role: 'ai', content: 'one' },
+    { role: 'user', content: 'second' },
+    { role: 'ai', content: 'two' },
+    { role: 'user', content: 'third' },
+  ];
+
+  const entries = sessionController.listRewindEntries(transcript);
+  assert.deepEqual(entries.map((entry) => entry.preview), ['first', 'second', 'third']);
+
+  const rewound = sessionController.rewindTranscript(transcript, entries[1].transcriptIndex);
+  assert.deepEqual(rewound, [
+    { role: 'user', content: 'first' },
+    { role: 'ai', content: 'one' },
+  ]);
+});
