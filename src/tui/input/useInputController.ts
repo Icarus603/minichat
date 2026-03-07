@@ -14,6 +14,8 @@ import {
   moveDown,
   moveLeft,
   moveRight,
+  moveToVisualLineEnd,
+  moveToVisualLineStart,
   moveUp,
   revealPasteStart,
   setViewportSize,
@@ -348,8 +350,27 @@ export function useInputController({
     if (key.return && key.shift) return void commitEditor(setViewportSize(insertText(currentEditor, '\n'), inputWidth, inputHeight));
     if (key.leftArrow) return void commitEditor(setViewportSize(moveLeft(currentEditor), inputWidth, inputHeight));
     if (key.rightArrow) return void commitEditor(setViewportSize(moveRight(currentEditor), inputWidth, inputHeight));
-    if (key.upArrow) return void commitEditor(setViewportSize(moveUp(currentEditor, inputWidth), inputWidth, inputHeight));
-    if (key.downArrow) return void commitEditor(setViewportSize(moveDown(currentEditor, inputWidth), inputWidth, inputHeight));
+    if (key.upArrow) {
+      const rendered = getRenderedLines(currentEditor, inputWidth);
+      if (rendered.cursorColumn > 0) {
+        return void commitEditor(
+          setViewportSize(moveToVisualLineStart(currentEditor, inputWidth), inputWidth, inputHeight),
+        );
+      }
+      return void commitEditor(setViewportSize(moveUp(currentEditor, inputWidth), inputWidth, inputHeight));
+    }
+    if (key.downArrow) {
+      const rendered = getRenderedLines(currentEditor, inputWidth);
+      const currentLine = rendered.lines[rendered.cursorLineIndex] ?? '';
+      const atVisualLineEnd = rendered.cursorCharIndex >= Array.from(currentLine).length;
+
+      if (!atVisualLineEnd) {
+        return void commitEditor(
+          setViewportSize(moveToVisualLineEnd(currentEditor, inputWidth), inputWidth, inputHeight),
+        );
+      }
+      return void commitEditor(setViewportSize(moveDown(currentEditor, inputWidth), inputWidth, inputHeight));
+    }
     if (backwardDelete) return void commitEditor(setViewportSize(backspace(currentEditor), inputWidth, inputHeight));
     if (forwardDelete) return void commitEditor(setViewportSize(deleteForward(currentEditor), inputWidth, inputHeight));
     if (isFreeformTypingInput(input)) {

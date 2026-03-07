@@ -147,11 +147,15 @@ const getLayout = (state, width = DEFAULT_VIEWPORT_WIDTH) => {
     const activeLine = info.lines[info.lineIndex] ?? '';
     if (segmentsForLine.length > 0) {
         let active = segmentsForLine[segmentsForLine.length - 1];
+        const lineLength = activeLine.length;
         if (info.column === 0) {
             active = segmentsForLine[0];
         }
+        else if (info.column >= lineLength) {
+            active = segmentsForLine[segmentsForLine.length - 1];
+        }
         else {
-            const candidate = segmentsForLine.find(({ segment }) => info.column > segment.start && info.column <= segment.end);
+            const candidate = segmentsForLine.find(({ segment }) => info.column >= segment.start && info.column < segment.end);
             if (candidate) {
                 active = candidate;
             }
@@ -289,6 +293,24 @@ export const moveToVisualPosition = (state, width, visualRow, visualColumn) => {
         cursor: target.cursor,
         preferredVisualColumn: target.displayColumn,
         selection: null,
+    };
+};
+export const moveToVisualLineStart = (state, width = DEFAULT_VIEWPORT_WIDTH) => {
+    const layout = getLayout(state, width);
+    const next = moveToVisualPosition(state, width, layout.cursorLineIndex, 0);
+    return {
+        ...next,
+        preferredVisualColumn: null,
+        viewportMode: 'follow-cursor',
+    };
+};
+export const moveToVisualLineEnd = (state, width = DEFAULT_VIEWPORT_WIDTH) => {
+    const layout = getLayout(state, width);
+    const next = moveToVisualPosition(state, width, layout.cursorLineIndex, Number.POSITIVE_INFINITY);
+    return {
+        ...next,
+        preferredVisualColumn: null,
+        viewportMode: 'follow-cursor',
     };
 };
 export const moveUp = (state, width = DEFAULT_VIEWPORT_WIDTH) => {

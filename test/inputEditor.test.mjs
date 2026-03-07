@@ -45,12 +45,34 @@ test('moveUp and moveDown preserve visual column when possible', () => {
 });
 
 test('moveUp and moveDown follow wrapped visual rows', () => {
-  const state = editor.createInputEditorState('abcd', 4);
-  const up = editor.moveUp(state, 2);
-  const down = editor.moveDown(up, 2);
+  const state = editor.createInputEditorState('abcdefghij', 6);
+  const up = editor.moveUp(state, 4);
+  const down = editor.moveDown(up, 4);
 
   assert.equal(up.cursor, 2);
-  assert.equal(down.cursor, 4);
+  assert.equal(down.cursor, 6);
+});
+
+test('wrapped boundary belongs to the later visual row', () => {
+  const state = editor.createInputEditorState('abcdefghij', 4);
+  const rendered = editor.getRenderedLines(state, 4);
+
+  assert.equal(rendered.cursorLineIndex, 1);
+  assert.equal(rendered.cursorColumn, 0);
+});
+
+test('moveToVisualLineStart jumps to the current wrapped row start', () => {
+  const state = editor.createInputEditorState('abcdefghij', 6);
+  const next = editor.moveToVisualLineStart(state, 4);
+
+  assert.equal(next.cursor, 4);
+});
+
+test('moveToVisualLineEnd jumps to the current wrapped row end', () => {
+  const state = editor.createInputEditorState('abcdefghij', 6);
+  const next = editor.moveToVisualLineEnd(state, 4);
+
+  assert.equal(next.cursor, 8);
 });
 
 test('viewport follows cursor for wrapped content', () => {

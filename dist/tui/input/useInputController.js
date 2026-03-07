@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInput, useStdin } from 'ink';
 import { filterCommandRegistry } from '../../app/commands/registry.js';
-import { backspace, clearEditor, createInputEditorState, deleteForward, getRenderedLines, getViewportRenderedLines, insertText, moveDown, moveLeft, moveRight, moveUp, revealPasteStart, setViewportSize, } from './textBuffer.js';
+import { backspace, clearEditor, createInputEditorState, deleteForward, getRenderedLines, getViewportRenderedLines, insertText, moveDown, moveLeft, moveRight, moveToVisualLineEnd, moveToVisualLineStart, moveUp, revealPasteStart, setViewportSize, } from './textBuffer.js';
 import { BRACKETED_PASTE_END, BRACKETED_PASTE_START, createPastePlaceholder, expandPastePlaceholders, isLargePaste, } from './paste.js';
 import { isBackwardDelete, isForwardDelete, isFreeformTypingInput, isPaletteTypingInput } from './keymap.js';
 import { useTerminalState } from '../contexts/TerminalContext.js';
@@ -235,10 +235,22 @@ export function useInputController({ onSend, loading, onInterrupt, onCommand, se
             return void commitEditor(setViewportSize(moveLeft(currentEditor), inputWidth, inputHeight));
         if (key.rightArrow)
             return void commitEditor(setViewportSize(moveRight(currentEditor), inputWidth, inputHeight));
-        if (key.upArrow)
+        if (key.upArrow) {
+            const rendered = getRenderedLines(currentEditor, inputWidth);
+            if (rendered.cursorColumn > 0) {
+                return void commitEditor(setViewportSize(moveToVisualLineStart(currentEditor, inputWidth), inputWidth, inputHeight));
+            }
             return void commitEditor(setViewportSize(moveUp(currentEditor, inputWidth), inputWidth, inputHeight));
-        if (key.downArrow)
+        }
+        if (key.downArrow) {
+            const rendered = getRenderedLines(currentEditor, inputWidth);
+            const currentLine = rendered.lines[rendered.cursorLineIndex] ?? '';
+            const atVisualLineEnd = rendered.cursorCharIndex >= Array.from(currentLine).length;
+            if (!atVisualLineEnd) {
+                return void commitEditor(setViewportSize(moveToVisualLineEnd(currentEditor, inputWidth), inputWidth, inputHeight));
+            }
             return void commitEditor(setViewportSize(moveDown(currentEditor, inputWidth), inputWidth, inputHeight));
+        }
         if (backwardDelete)
             return void commitEditor(setViewportSize(backspace(currentEditor), inputWidth, inputHeight));
         if (forwardDelete)
