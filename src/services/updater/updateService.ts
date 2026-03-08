@@ -3,6 +3,7 @@ import { APP_VERSION } from '../../shared/version.js';
 
 const LATEST_RELEASE_URL = 'https://api.github.com/repos/Icarus603/minichat/releases/latest';
 const BREW_CASK = 'Icarus603/tap/minichat';
+const BREW_CASK_NAME = 'minichat';
 
 export type UpdateInfo = {
   currentVersion: string;
@@ -159,7 +160,7 @@ export async function installLatestUpdate(
 ): Promise<UpdateInstallResult> {
   const upgrade = await runBrew(['upgrade', '--cask', BREW_CASK], onProgress);
   if (upgrade.ok) {
-    await runBrew(['cleanup', '--cask', BREW_CASK]);
+    await runBrew(['cleanup', BREW_CASK_NAME]);
     return upgrade;
   }
 
@@ -172,7 +173,7 @@ export async function installLatestUpdate(
 
   const reinstall = await runBrew(['reinstall', '--cask', BREW_CASK], onProgress);
   if (reinstall.ok) {
-    await runBrew(['cleanup', '--cask', BREW_CASK]);
+    await runBrew(['cleanup', BREW_CASK_NAME]);
     return reinstall;
   }
 
